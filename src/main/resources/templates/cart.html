@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Корзина товаров</title>
+    <style>
+        /* Стили остаются */
+    </style>
+</head>
+<body>
+<div th:if="${successMessage}" style="color: green; border: 1px solid green; padding: 10px; margin-bottom: 10px;">
+    <p th:text="${successMessage}"></p>
+</div>
+<div th:if="${errorMessage}" style="color: red; border: 1px solid red; padding: 10px; margin-bottom: 10px;">
+    <p th:text="${errorMessage}"></p>
+</div>
+
+<a href="/orders" style="float:right;">
+    <b>Заказы</b>
+</a>
+<br/>
+<a href="/main/items" style="float:right;">
+    <b>На главную</b>
+</a>
+<br>
+<table th:each="cartItem : ${cartItems}">
+    <table>
+        <tr>
+            <a th:href="${'/items/'+cartItem.item.id}">
+                <img th:src="@{/{itemId}/image(itemId=${cartItem.item.id})}" width="300" height="300" alt="Нет изображения"> </a>
+        </tr>
+        <br>
+        <tr width="100">
+            <p th:text="'Название: ' + ${cartItem.item.name}"></p>
+        </tr>
+        <br>
+        <tr width="100">
+            <p th:text="'Описание: ' + ${cartItem.item.description}"></p>
+        </tr>
+        <br>
+        <tr width="100">
+            <p th:text="'Цена: ' + ${#numbers.formatDecimal(cartItem.item.price, 1, 'COMMA', 2, 'POINT')} +' ₽'"></p>
+        </tr>
+        <br>
+        <form th:action="@{/cart/item/{cartItemId}/minus(cartItemId=${cartItem.id})}" method="POST">
+            <button type="submit">-</button>
+        </form>
+        &nbsp;
+        <span th:text="${cartItem.quantity}"></span>
+        &nbsp;
+        <form th:action="@{/cart/item/{cartItemId}/plus(cartItemId=${cartItem.id})}" method="POST">
+            <button type="submit">+</button>
+        </form>
+        &nbsp;
+        <form th:action="@{/cart/item/{cartItemId}/remove(cartItemId=${cartItem.id})}" method="POST">
+            <button type="submit" name="redirectTo" th:value="CART">Удалить из корзины</button>
+        </form>
+    </table>
+</table>
+<br/> <b th:text="'Итого: ' + ${totalPriceFormatted} + ' ₽'"></b>
+<form action="/create-order" method="post">
+    <button>Купить</button>
+</form>
+</body>
+</html>

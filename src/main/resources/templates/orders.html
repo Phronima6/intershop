@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Заказы</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 60%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border-style: hidden;
+        }
+        td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+        button {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        p {
+            display: inline;
+        }
+        h4 {
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+<a href="/cart/items" style="float:right;">
+    <b>Корзина</b>
+</a>
+<br/>
+<a href="/main/items" style="float:right;">
+    <b>На главную</b>
+</a>
+<table th:each="order : ${orders}">
+    <br/>
+    <h4>
+        <a th:text="${'Заказ № ' + order.getId()}" th:href="${'/orders/' + order.getId()}"></a>
+    </h4>
+    <table th:each="orderItem : ${order.getOrderItems()}">
+        <td>
+            <a th:href="${'/items/' + orderItem.getItemDto().getId()}">
+                <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItemDto().id})}" width="300" height="300">
+            </a>
+        </td>
+        <td>
+            <p th:text="'Название: ' + ${orderItem.getItemDto().getName()}"></p>
+            <br/>
+            <p th:text="'Описание: ' + ${orderItem.getItemDto().getDescription()}"></p>
+            <br/>
+            <p th:text="'Цена: ' + ${orderItem.getItemDto().getPriceFormatted()}+' ₽/ед.'"></p>
+            <br/>
+            <p th:text="'Количество: ' + ${orderItem.getItemAmount()} + ' ед.'"></p>
+            <br/>
+            <p th:text="'Сумма: ' + ${orderItem.getItemDto().getPrice() * orderItem.getItemAmount()}+' ₽'"></p>
+        </td>
+    </table>
+        <p>
+            <b th:text="${'Сумма заказа № ' + order.getId() + ': ' + order.getTotalSumFormatted()} + ' ₽'"></b>
+        </p>
+    <hr/>
+    <br/>
+</table>
+<br/>
+<br/>
+<p>
+    <b th:text="'Общая сумма всех сделанных заказов: ' + ${sumOfAllOrdersFormatted} + ' ₽'"></b>
+</p>
+</body>
+</html>
