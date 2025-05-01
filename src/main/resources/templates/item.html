@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Витрина товаров</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 20%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        button {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        p {
+            display: inline;
+        }
+    </style>
+</head>
+<body>
+<a href="/orders" style="float:right;">
+    <b>Заказы</b>
+</a>
+<br/>
+<a href="/cart/items" style="float:right;">
+    <b>Корзина</b>
+</a>
+<br/>
+<a href="/main/items" style="float:right;">
+    <b>На главную</b>
+</a>
+<img th:src="@{/{itemDtoId}/image(itemDtoId=${itemDto.id})}" width="300" height="300"/>
+<br/>
+<p th:text="'Название: ' + ${itemDto.getName()}"></p>
+<br/>
+<p th:text="'Описание: ' + ${itemDto.getDescription()}"></p>
+<br/>
+<p th:text="'Цена: ' + ${itemDto.getPriceFormatted()}+' ₽'"></p>
+<br/>
+<table>
+    <form th:action="@{/item/{id}/minus(id=${itemDto.id})}" method="POST">
+        <button type="submit" name="pageName" th:value="ITEM">-</button>
+    </form>
+    &nbsp;
+    <span th:text="${itemDto.amount}"></span>
+    &nbsp;
+    <form th:action="@{/item/{id}/plus(id=${itemDto.id})}" method="POST">
+        <button type="submit" name="pageName" th:value="ITEM">+</button>
+    </form>
+    &nbsp;&nbsp;
+    <form th:action="@{/cart/add/{id}(id=${itemDto.id})}" method="POST">
+        <button type="submit" name="pageName" th:value="ITEM">Добавить в корзину</button>
+    </form>
+    &nbsp;
+    <form th:action="@{/cart/remove/{id}(id=${itemDto.id})}" method="POST">
+        <button type="submit" name="pageName" th:value="ITEM">Удалить из корзины</button>
+    </form>
+</table>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Заказ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 20%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: right;
+        }
+        .form-container {
+            margin-bottom: 40px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="text"], input[type="number"], input[type="checkbox"] {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        select {
+            margin-bottom: 20px;
+        }
+        button {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .btn-add {
+            margin-bottom: 20px;
+        }
+        p {
+            display: inline;
+        }
+        .submitbutton{
+            display:block;
+        }
+    </style>
+</head>
+<body>
+<a href="/orders" style="float:right;">
+    <b>Заказы</b>
+</a>
+<br/>
+<a href="/main/items" style="float:right;">
+    <b>На главную</b>
+</a>
+<br>
+<h2 th:text="${'Заказ № '+ order.getId()}"></h2>
+<table th:each="orderItem : ${order.getOrderItems()}" style="width:70%;margin-left:auto;margin-right:auto;">
+    <tr>
+        <a th:href="${'/items/'+orderItem.getItemDto().getId()}">
+            <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItemDto().id})}" width="300" height="300">
+        </a>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Название: ' + ${orderItem.getItemDto().getName()}"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Описание: ' + ${orderItem.getItemDto().getDescription()}"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Количество: ' + ${orderItem.getItemAmount()} + ' ед.'"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Цена: ' + ${orderItem.getItemDto().getPriceFormatted()}+' ₽/ед.'"></p>
+    </tr>
+    <br>
+    <tr>
+        <p th:text="'Сумма: ' + ${orderItem.getItemDto().getPrice() * orderItem.getItemAmount()} + ' ₽'"></p>
+    </tr>
+</table>
+<b th:text="'Итоговая сумма заказа: ' + ${order.getTotalSumFormatted()}+' ₽'"></b>
+</body>
+</html>
