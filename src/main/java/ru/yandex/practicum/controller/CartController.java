@@ -1,15 +1,16 @@
 package ru.yandex.practicum.controller;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.reactive.result.view.Rendering;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.model.PageNames;
 import ru.yandex.practicum.service.CartService;
+import ru.yandex.practicum.repository.ItemRepository;
 
 @Controller
 @RequestMapping("/cart")
@@ -20,71 +21,89 @@ public class CartController {
     static String REDIRECT_MAIN = "redirect:/main/items";
     static String REDIRECT_CART = "redirect:/cart/items";
     CartService cartService;
+    ItemRepository itemRepository;
 
     @PostMapping("/add/{id}")
-    public String addToCart(@PathVariable final Integer id, RedirectAttributes redirectAttributes) {
-        try {
-            cartService.addItemToCart(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Товар добавлен в корзину!");
-        } catch (IllegalStateException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Не удалось добавить товар: " + e.getMessage());
-        }
-        return REDIRECT_MAIN;
+    public Mono<String> addToCart(@PathVariable final Integer id, ServerWebExchange exchange) {
+        return itemRepository.findById(id)
+                .flatMap(item -> {
+                    int amount = item.getAmount();
+                    if (amount <= 0) {
+                        exchange.getAttributes().put("errorMessage", "Товар отсутствует на складе");
+                        return Mono.empty();
+                    }
+                    return cartService.addItemToCart(id, amount > 0 ? amount : 1)
+                            .doOnSuccess(cartItem -> 
+                                exchange.getAttributes().put("successMessage", "Товар добавлен в корзину!"))
+                            .onErrorResume(IllegalStateException.class, e -> {
+                                exchange.getAttributes().put("errorMessage", e.getMessage());
+                                return Mono.empty();
+                            })
+                            .onErrorResume(e -> {
+                                exchange.getAttributes().put("errorMessage", "Не удалось добавить товар: " +
+                                        e.getMessage());
+                                return Mono.empty();
+                            });
+                })
+                .thenReturn(REDIRECT_MAIN)
+                .defaultIfEmpty(REDIRECT_MAIN);
     }
 
     @GetMapping("/items")
-    public String viewCart(final Model model) {
-        model.addAttribute("cartItems", cartService.getCartItems());
-        model.addAttribute("totalPriceFormatted", cartService.getFormattedTotalPrice());
-        return "cart";
+    public Mono<Rendering> viewCart() {
+        return cartService.getCartItems()
+                .collectList()
+                .zipWith(cartService.getFormattedTotalPrice())
+                .map(tuple -> Rendering.view("cart")
+                        .modelAttribute("cartItems", tuple.getT1())
+                        .modelAttribute("totalPriceFormatted", tuple.getT2())
+                        .build());
     }
 
     @PostMapping("/item/{cartItemId}/plus")
-    public String increaseQuantity(@PathVariable int cartItemId, RedirectAttributes redirectAttributes) {
-        try {
-            cartService.increaseCartItemQuantity(cartItemId);
-        } catch (EntityNotFoundException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Элемент корзины не найден.");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Не удалось увеличить количество: " + e.getMessage());
-        }
-        return REDIRECT_CART;
+    public Mono<String> increaseQuantity(@PathVariable int cartItemId, ServerWebExchange exchange) {
+        return cartService.increaseCartItemQuantity(cartItemId)
+                .thenReturn(REDIRECT_CART)
+                .onErrorResume(e -> {
+                    String errorMessage = e instanceof RuntimeException ? 
+                                         "Элемент корзины не найден." : 
+                                         "Не удалось увеличить количество: " + e.getMessage();
+                    exchange.getAttributes().put("errorMessage", errorMessage);
+                    return Mono.just(REDIRECT_CART);
+                });
     }
 
     @PostMapping("/item/{cartItemId}/minus")
-    public String decreaseQuantity(@PathVariable int cartItemId, RedirectAttributes redirectAttributes) {
-        try {
-            cartService.decreaseCartItemQuantity(cartItemId);
-        } catch (EntityNotFoundException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Элемент корзины не найден.");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Не удалось уменьшить количество: " + e.getMessage());
-        }
-        return REDIRECT_CART;
+    public Mono<String> decreaseQuantity(@PathVariable int cartItemId, ServerWebExchange exchange) {
+        return cartService.decreaseCartItemQuantity(cartItemId)
+                .thenReturn(REDIRECT_CART)
+                .onErrorResume(e -> {
+                    String errorMessage = e instanceof RuntimeException ? 
+                                         "Элемент корзины не найден." : 
+                                         "Не удалось уменьшить количество: " + e.getMessage();
+                    exchange.getAttributes().put("errorMessage", errorMessage);
+                    return Mono.just(REDIRECT_CART);
+                });
     }
 
     @PostMapping("/item/{cartItemId}/remove")
-    public String removeCartItemById(
+    public Mono<String> removeCartItemById(
             @PathVariable int cartItemId,
             @RequestParam PageNames redirectTo,
-            RedirectAttributes redirectAttributes) {
-        try {
-            cartService.removeCartItemById(cartItemId);
-            redirectAttributes.addFlashAttribute("successMessage", "Товар удален из корзины.");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Не удалось удалить товар: " + e.getMessage());
-        }
-        return switch (redirectTo) {
-            case MAIN -> REDIRECT_MAIN;
-            case ITEM -> "redirect:/items/" + "?";
-            case CART -> REDIRECT_CART;
-        };
+            @RequestParam(required = false) Integer itemId,
+            ServerWebExchange exchange) {
+        
+        return cartService.removeCartItemById(cartItemId)
+                .doOnSuccess(v -> exchange.getAttributes().put("successMessage", "Товар удален из корзины."))
+                .onErrorResume(e -> {
+                    exchange.getAttributes().put("errorMessage", "Не удалось удалить товар: " + e.getMessage());
+                    return Mono.empty();
+                })
+                .thenReturn(switch (redirectTo) {
+                    case MAIN -> REDIRECT_MAIN;
+                    case ITEM -> itemId != null ? "redirect:/items/" + itemId : REDIRECT_MAIN;
+                    case CART -> REDIRECT_CART;
+                })
+                .defaultIfEmpty(REDIRECT_CART);
     }
-
 }

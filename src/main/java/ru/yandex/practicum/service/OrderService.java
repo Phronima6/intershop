@@ -4,15 +4,16 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.model.Item;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.repository.CartRepository;
+import ru.yandex.practicum.repository.ItemRepository;
 import ru.yandex.practicum.repository.OrderItemRepository;
 import ru.yandex.practicum.repository.OrderRepository;
 import ru.yandex.practicum.model.CartItem;
 import ru.yandex.practicum.model.Order;
 import ru.yandex.practicum.model.OrderItem;
 import ru.yandex.practicum.util.Formatter;
-import java.util.ArrayList;
 import java.util.List;
 
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
@@ -23,60 +24,175 @@ public class OrderService {
     OrderRepository orderRepository;
     OrderItemRepository orderItemRepository;
     CartRepository cartRepository;
+    ItemRepository itemRepository;
 
-    public Order createOrder() {
-        List<CartItem> cartItems = cartRepository.findAll();
-        if (cartItems.isEmpty() || !doesCartHaveNotNullItems(cartItems)) {
-            return null;
-        }
-        List<OrderItem> orderItems = new ArrayList<>();
-        Order order = new Order();
-        Order savedOrder = orderRepository.save(order);
-        double totalSum = 0;
-        for (CartItem cartItem : cartItems) {
-            Item item = cartItem.getItem();
-            OrderItem orderItem;
-            if (item.getAmount() != 0) {
-                orderItem = new OrderItem();
-                orderItem.setOrder(savedOrder);
-                orderItem.setItem(item);
-                orderItem.setItemAmount(item.getAmount());
-                orderItems.add(orderItem);
-                orderItemRepository.save(orderItem);
-                totalSum += orderItem.getItemAmount() * orderItem.getItem().getPrice();
-            }
-        }
-        savedOrder.setOrderItems(orderItems);
-        savedOrder.setTotalSum(totalSum);
-        orderRepository.save(savedOrder);
-        cartRepository.deleteAll();
-        return savedOrder;
+    public Mono<Order> createOrder() {
+        return cartRepository.findAll()
+                .flatMap(cartItem -> 
+                    itemRepository.findById(cartItem.getItemId())
+                        .doOnError(e -> System.err.println("Error loading item: " + e.getMessage()))
+                        .onErrorResume(e -> Mono.empty())
+                        .map(item -> {
+                            cartItem.setItem(item);
+                            return cartItem;
+                        })
+                        .defaultIfEmpty(cartItem)
+                )
+                .collectList()
+                .flatMap(cartItems -> {
+                    if (cartItems.isEmpty()) {
+                        return Mono.empty();
+                    }
+                    
+                    List<CartItem> validCartItems = cartItems.stream()
+                            .filter(cartItem -> cartItem.getItem() != null && cartItem.getItem().getAmount() > 0)
+                            .toList();
+                    
+                    if (validCartItems.isEmpty()) {
+                        return Mono.empty();
+                    }
+                    
+                    Order order = new Order();
+                    return orderRepository.save(order)
+                            .flatMap(savedOrder -> {
+                                Flux<OrderItem> orderItemsFlux = Flux.fromIterable(validCartItems)
+                                        .flatMap(cartItem -> {
+                                            if (cartItem.getItem() == null) {
+                                                return Mono.empty();
+                                            }
+                                            
+                                            if (cartItem.getQuantity() > cartItem.getItem().getAmount()) {
+                                                return Mono.error(new IllegalStateException(
+                                                        "Недостаточно товара '" + cartItem.getItem().getName() + 
+                                                        "' на складе. Доступно: " + cartItem.getItem().getAmount() + 
+                                                        ", запрошено: " + cartItem.getQuantity()));
+                                            }
+                                            
+                                            OrderItem orderItem = new OrderItem();
+                                            orderItem.setOrderId(savedOrder.getId());
+                                            orderItem.setItemId(cartItem.getItemId());
+                                            orderItem.setItemAmount(cartItem.getQuantity());
+                                            
+                                            cartItem.getItem().setAmount(cartItem.getItem().getAmount() -
+                                                    cartItem.getQuantity());
+                                            return itemRepository.save(cartItem.getItem())
+                                                    .flatMap(savedItem -> orderItemRepository.save(orderItem))
+                                                    .onErrorResume(e -> {
+                                                        System.err.println("Error saving order item: " +
+                                                                e.getMessage());
+                                                        return Mono.empty();
+                                                    });
+                                        });
+                                
+                                return orderItemsFlux
+                                        .collectList()
+                                        .flatMap(orderItems -> {
+                                            if (orderItems.isEmpty()) {
+                                                return orderRepository.deleteById(savedOrder.getId())
+                                                        .then(Mono.empty());
+                                            }
+                                            
+                                            savedOrder.setOrderItems(orderItems);
+                                            
+                                            double totalSum = orderItems.stream()
+                                                    .mapToDouble(orderItem -> {
+                                                        CartItem cartItem = validCartItems.stream()
+                                                                .filter(ci -> ci.getItemId().equals(orderItem
+                                                                        .getItemId()))
+                                                                .findFirst()
+                                                                .orElse(null);
+                                                        
+                                                        if (cartItem == null || cartItem.getItem() == null) {
+                                                            return 0;
+                                                        }
+                                                        
+                                                        return orderItem.getItemAmount() * cartItem.getItem()
+                                                                .getPrice();
+                                                    })
+                                                    .sum();
+                                            
+                                            savedOrder.setTotalSum(totalSum);
+                                            return orderRepository.save(savedOrder)
+                                                    .onErrorResume(e -> {
+                                                        System.err.println("Error saving order: " + e.getMessage());
+                                                        return Mono.empty();
+                                                    });
+                                        })
+                                        .flatMap(savedOrderWithTotal -> 
+                                            cartRepository.deleteAll()
+                                                .thenReturn(savedOrderWithTotal)
+                                                .onErrorResume(e -> {
+                                                    System.err.println("Error clearing cart: " + e.getMessage());
+                                                    return Mono.just(savedOrderWithTotal);
+                                                })
+                                        );
+                            })
+                            .onErrorResume(e -> {
+                                System.err.println("Error in order creation: " + e.getMessage());
+                                return Mono.empty();
+                            });
+                });
     }
 
-    public List<Order> getOrders() {
-        return orderRepository.findAll();
+    public Flux<Order> getOrders() {
+        return orderRepository.findAll()
+                .flatMap(order -> 
+                    orderItemRepository.findByOrderId(order.getId())
+                        .flatMap(orderItem -> 
+                            itemRepository.findById(orderItem.getItemId())
+                                .doOnError(e -> System.err.println("Error loading item: " + e.getMessage()))
+                                .onErrorResume(e -> Mono.empty())
+                                .map(item -> {
+                                    orderItem.setItem(item);
+                                    return orderItem;
+                                })
+                                .defaultIfEmpty(orderItem)
+                        )
+                        .collectList()
+                        .map(orderItems -> {
+                            order.setOrderItems(orderItems);
+                            return order;
+                        })
+                );
     }
 
-    public Order getOrder(int id) {
-        return orderRepository.findById(id).get();
+    public Mono<Order> getOrder(int id) {
+        return orderRepository.findById(id)
+                .flatMap(order -> 
+                    orderItemRepository.findByOrderId(order.getId())
+                        .flatMap(orderItem -> 
+                            itemRepository.findById(orderItem.getItemId())
+                                .doOnError(e -> System.err.println("Error loading item: " + e.getMessage()))
+                                .onErrorResume(e -> Mono.empty())
+                                .map(item -> {
+                                    orderItem.setItem(item);
+                                    return orderItem;
+                                })
+                                .defaultIfEmpty(orderItem)
+                        )
+                        .collectList()
+                        .map(orderItems -> {
+                            order.setOrderItems(orderItems);
+                            return order;
+                        })
+                );
     }
 
-    private boolean doesCartHaveNotNullItems(List<CartItem> cartItems) {
+    private Mono<Boolean> doesCartHaveNotNullItems(List<CartItem> cartItems) {
         for (CartItem cartItem : cartItems) {
             if (cartItem.getItem().getAmount() != 0) {
-                return true;
+                return Mono.just(true);
             }
         }
-        return false;
+        return Mono.just(false);
     }
 
-    public Double getOrdersTotalSum() {
-        return orderRepository.getSumOfAllOrders();
+    public Mono<Double> getOrdersTotalSum() {
+        return orderRepository.getSumOfAllOrders().defaultIfEmpty(0.0);
     }
 
-    public String getOrdersTotalSumFormatted() {
-        Double sumOfAllOrders = getOrdersTotalSum();
-        return Formatter.DECIMAL_FORMAT.format(sumOfAllOrders != null ? sumOfAllOrders : 0);
+    public Mono<String> getOrdersTotalSumFormatted() {
+        return getOrdersTotalSum()
+                .map(Formatter.DECIMAL_FORMAT::format);
     }
-
 }

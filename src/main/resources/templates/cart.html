@@ -27,7 +27,8 @@
     <table>
         <tr>
             <a th:href="${'/items/'+cartItem.item.id}">
-                <img th:src="@{/{itemId}/image(itemId=${cartItem.item.id})}" width="300" height="300" alt="Нет изображения"> </a>
+                <img th:src="@{/{itemId}/image(itemId=${cartItem.item.id})}" width="300" height="300"
+                     alt="Нет изображения"> </a>
         </tr>
         <br>
         <tr width="100">
@@ -52,8 +53,8 @@
             <button type="submit">+</button>
         </form>
         &nbsp;
-        <form th:action="@{/cart/item/{cartItemId}/remove(cartItemId=${cartItem.id})}" method="POST">
-            <button type="submit" name="redirectTo" th:value="CART">Удалить из корзины</button>
+        <form th:action="@{/cart/item/{cartItemId}/remove(cartItemId=${cartItem.id},redirectTo=CART)}" method="POST">
+            <button type="submit">Удалить из корзины</button>
         </form>
     </table>
 </table>

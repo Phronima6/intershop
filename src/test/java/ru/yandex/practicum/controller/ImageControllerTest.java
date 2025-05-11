@@ -1,28 +1,30 @@
 package ru.yandex.practicum.controller;
 
-import lombok.AccessLevel;
-import lombok.experimental.FieldDefaults;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
+import ru.yandex.practicum.repository.CartRepository;
+import ru.yandex.practicum.repository.ItemRepository;
+import ru.yandex.practicum.repository.OrderItemRepository;
+import ru.yandex.practicum.repository.OrderRepository;
 import ru.yandex.practicum.service.ImageService;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(ImageController.class)
-@FieldDefaults(level = AccessLevel.PRIVATE)
+@WebFluxTest(ImageController.class)
 class ImageControllerTest {
 
     @Autowired
-    MockMvc mockMvc;
+    private WebTestClient webClient;
+
     @Autowired
-    ImageService imageService;
+    private ImageService imageService;
 
     @TestConfiguration
     static class ControllerTestConfiguration {
@@ -30,27 +32,53 @@ class ImageControllerTest {
         public ImageService imageService() {
             return Mockito.mock(ImageService.class);
         }
+        
+        @Bean
+        public ItemRepository itemRepository() {
+            return Mockito.mock(ItemRepository.class);
+        }
+        
+        @Bean
+        public OrderRepository orderRepository() {
+            return Mockito.mock(OrderRepository.class);
+        }
+        
+        @Bean
+        public OrderItemRepository orderItemRepository() {
+            return Mockito.mock(OrderItemRepository.class);
+        }
+        
+        @Bean
+        public CartRepository cartRepository() {
+            return Mockito.mock(CartRepository.class);
+        }
     }
 
     @Test
-    void getImage_shouldReturnImageBytesWhenFound() throws Exception {
-        int itemId = 1;
+    void getImage_shouldReturnImageBytesWhenFound() {
+        int imageId = 1;
         byte[] imageBytes = "test image data".getBytes();
-        given(imageService.getImage(itemId)).willReturn(imageBytes);
-        mockMvc.perform(get("/{itemId}/image", itemId))
-                .andExpect(status().isOk())
-                .andExpect(content().bytes(imageBytes));
-        verify(imageService).getImage(itemId);
+
+        given(imageService.getImage(imageId)).willReturn(Mono.just(imageBytes));
+
+        webClient.get().uri("/{imageId}/image", imageId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(byte[].class).isEqualTo(imageBytes);
+
+        verify(imageService).getImage(imageId);
     }
 
     @Test
-    void getImage_shouldReturnOkWithEmptyBodyWhenServiceReturnsEmpty() throws Exception {
-        int itemId = 2;
-        given(imageService.getImage(itemId)).willReturn(new byte[0]);
-        mockMvc.perform(get("/{itemId}/image", itemId))
-                .andExpect(status().isOk())
-                .andExpect(content().bytes(new byte[0]));
-        verify(imageService).getImage(itemId);
-    }
+    void getImage_shouldReturnErrorWhenImageNotFound() {
+        int imageId = 2;
+        given(imageService.getImage(imageId))
+                .willReturn(Mono.error(new RuntimeException("Image not found")));
 
+        webClient.get().uri("/{imageId}/image", imageId)
+                .exchange()
+                .expectStatus().is5xxServerError();
+
+        verify(imageService).getImage(imageId);
+    }
 }

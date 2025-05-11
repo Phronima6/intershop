@@ -1,28 +1,26 @@
 package ru.yandex.practicum.model;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.hibernate.annotations.JdbcTypeCode;
-import java.sql.Types;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
-@Table(name = "images")
+@Table("images")
 public class Image {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     int id;
-    @JdbcTypeCode(Types.BINARY)
-    @Column(name = "image_bytes")
-    @Lob
+    
+    @Column("image_bytes")
     byte[] imageBytes;
-    @OneToOne(mappedBy = "image")
+    
+    @Transient
     Item item;
-
 }

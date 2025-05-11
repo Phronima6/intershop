@@ -127,22 +127,22 @@
         <p th:text="'Цена: ' + ${itemDto.getPriceFormatted()}+' ₽'"></p>
     </tr>
     <br/>
-    <form th:action="@{/item/{id}/minus(id=${itemDto.id})}" method="POST">
-        <button type="submit" name="redirectTo" th:value="MAIN">-</button>
+    <form th:action="@{/item/{id}/minus(id=${itemDto.id},redirectTo=MAIN)}" th:method="POST">
+        <button type="submit">-</button>
     </form>
     &#160;
     <span th:text="${itemDto.amount}"></span>
     &#160;
-    <form th:action="@{/item/{id}/plus(id=${itemDto.id})}" method="POST">
-        <button type="submit" name="redirectTo" th:value="MAIN">+</button>
+    <form th:action="@{/item/{id}/plus(id=${itemDto.id},redirectTo=MAIN)}" th:method="POST">
+        <button type="submit">+</button>
     </form>
     &#160;
     <form th:action="@{/cart/add/{id}(id=${itemDto.id})}" method="POST">
         <button type="submit">Добавить в корзину</button>
     </form>
     &#160;
-    <form th:action="@{/cart/remove/{id}(id=${itemDto.id})}" method="POST">
-        <button type="submit" name="redirectTo" th:value="MAIN">Удалить из корзины</button>
+    <form th:action="@{/cart/item/{itemId}/remove(itemId=${itemDto.id},redirectTo=MAIN)}" method="POST">
+        <button type="submit">Удалить из корзины</button>
     </form>
 </table>
 <button class="btn-add" onclick="toggleForm()">Добавить новый товар в каталог</button>

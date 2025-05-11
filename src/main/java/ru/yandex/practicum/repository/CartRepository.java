@@ -1,11 +1,11 @@
 package ru.yandex.practicum.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import ru.yandex.practicum.model.CartItem;
-import java.util.List;
+import reactor.core.publisher.Flux;
 
-public interface CartRepository extends JpaRepository<CartItem, Integer> {
+public interface CartRepository extends R2dbcRepository<CartItem, Integer> {
 
-    List<CartItem> findByItemId(Integer itemId);
+    Flux<CartItem> findByItemId(Integer itemId);
 
 }

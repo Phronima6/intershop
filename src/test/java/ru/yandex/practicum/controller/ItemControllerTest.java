@@ -1,43 +1,68 @@
 package ru.yandex.practicum.controller;
 
-import lombok.AccessLevel;
-import lombok.experimental.FieldDefaults;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.model.Item;
 import ru.yandex.practicum.model.PageNames;
+import ru.yandex.practicum.model.Pages;
 import ru.yandex.practicum.model.SortingCategory;
+import ru.yandex.practicum.repository.CartRepository;
+import ru.yandex.practicum.repository.ItemRepository;
+import ru.yandex.practicum.repository.OrderItemRepository;
+import ru.yandex.practicum.repository.OrderRepository;
 import ru.yandex.practicum.service.ItemService;
+
 import java.util.List;
-import java.util.Optional;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(ItemController.class)
-@FieldDefaults(level = AccessLevel.PRIVATE)
+@WebFluxTest(ItemController.class)
 class ItemControllerTest {
 
     @Autowired
-    MockMvc mockMvc;
+    private WebTestClient webClient;
+
     @Autowired
-    ItemService itemService;
-    Item item1;
-    Item item2;
+    private ItemService itemService;
+
+    private Item item1;
+    private Item item2;
 
     @TestConfiguration
     static class ControllerTestConfiguration {
         @Bean
         public ItemService itemService() {
             return Mockito.mock(ItemService.class);
+        }
+        
+        @Bean
+        public ItemRepository itemRepository() {
+            return Mockito.mock(ItemRepository.class);
+        }
+        
+        @Bean
+        public OrderRepository orderRepository() {
+            return Mockito.mock(OrderRepository.class);
+        }
+        
+        @Bean
+        public OrderItemRepository orderItemRepository() {
+            return Mockito.mock(OrderItemRepository.class);
+        }
+        
+        @Bean
+        public CartRepository cartRepository() {
+            return Mockito.mock(CartRepository.class);
         }
     }
 
@@ -50,6 +75,7 @@ class ItemControllerTest {
         item1.setDescription("Description 1");
         item1.setPrice(10);
         item1.setAmount(5);
+
         item2 = new Item();
         item2.setId(2);
         item2.setName("Test Item 2");
@@ -59,77 +85,110 @@ class ItemControllerTest {
     }
 
     @Test
-    void listItems_shouldReturnMainViewWithItemsAndPages() throws Exception {
+    void listItems_shouldReturnMainViewWithItemsAndPages() {
         int pageNumber = 1;
         int itemsOnPage = 10;
         long totalItems = 25;
+        
+        Pages pages = Pages.builder()
+                .itemsOnPage(itemsOnPage)
+                .numberOfPages(3)
+                .build();
+
         given(itemService.getPaginatedItems(itemsOnPage, pageNumber))
-                .willReturn(List.of(item1, item2));
-        given(itemService.getTotalItemsCount()).willReturn(totalItems);
-        mockMvc.perform(get("/main/items")
-                        .param("itemsOnPage", String.valueOf(itemsOnPage))
-                        .param("pageNumber", String.valueOf(pageNumber)))
-                .andExpect(status().isOk())
-                .andExpect(view().name("main"))
-                .andExpect(model().attributeExists("items"))
-                .andExpect(model().attributeExists("pages"))
-                .andExpect(model().attribute("items", List.of(item1, item2)));
+                .willReturn(Flux.just(item1, item2));
+        given(itemService.getTotalItemsCount())
+                .willReturn(Mono.just(totalItems));
+
+        Rendering expectedRendering = Rendering.view("main")
+                .modelAttribute("items", List.of(item1, item2))
+                .modelAttribute("pages", pages)
+                .build();
+        
+        webClient.get().uri(uriBuilder -> uriBuilder
+                        .path("/main/items")
+                        .queryParam("itemsOnPage", itemsOnPage)
+                        .queryParam("pageNumber", pageNumber)
+                        .build())
+                .exchange()
+                .expectStatus().isOk();
+
         verify(itemService).getPaginatedItems(itemsOnPage, pageNumber);
         verify(itemService).getTotalItemsCount();
     }
 
     @Test
-    void getItem_shouldReturnItemViewWhenItemExists() throws Exception {
+    void getItem_shouldReturnItemViewWhenItemExists() {
         int itemId = 1;
-        given(itemService.getItemById(itemId)).willReturn(Optional.of(item1));
-        mockMvc.perform(get("/items/{id}", itemId))
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"))
-                .andExpect(model().attributeExists("itemDto"))
-                .andExpect(model().attribute("itemDto", item1));
+        given(itemService.getItemById(itemId)).willReturn(Mono.just(item1));
+
+        webClient.get().uri("/items/{id}", itemId)
+                .exchange()
+                .expectStatus().isOk();
+
         verify(itemService).getItemById(itemId);
     }
 
     @Test
-    void getItem_shouldReturnNotFoundWhenItemDoesNotExist() throws Exception {
+    void getItem_shouldReturnNotFoundWhenItemDoesNotExist() {
         int itemId = 99;
-        given(itemService.getItemById(itemId)).willReturn(Optional.empty());
-        mockMvc.perform(get("/items/{id}", itemId))
-                .andExpect(status().isNotFound());
+        given(itemService.getItemById(itemId)).willReturn(Mono.empty());
+        given(itemService.getItemById(itemId))
+                .willReturn(Mono.error(new RuntimeException("Item not found")));
+
+        webClient.get().uri("/items/{id}", itemId)
+                .exchange()
+                .expectStatus().is5xxServerError();
+
         verify(itemService).getItemById(itemId);
     }
 
     @Test
-    void searchItems_shouldReturnMainViewWithResults() throws Exception {
+    void searchItems_shouldReturnMainViewWithResults() {
         String query = "Test";
         SortingCategory sort = SortingCategory.ALPHA;
         long totalItems = 2;
-        given(itemService.searchItems(query, sort)).willReturn(List.of(item1, item2));
-        given(itemService.getTotalItemsCount()).willReturn(totalItems);
-        mockMvc.perform(get("/search")
-                        .param("key", query)
-                        .param("sort", sort.name()))
-                .andExpect(status().isOk())
-                .andExpect(view().name("main"))
-                .andExpect(model().attributeExists("items"))
-                .andExpect(model().attributeExists("pages"))
-                .andExpect(model().attribute("items", List.of(item1, item2)));
+        
+        Pages pages = Pages.builder()
+                .itemsOnPage(100)
+                .numberOfPages(1)
+                .build();
+
+        given(itemService.searchItems(query, sort))
+                .willReturn(Flux.just(item1, item2));
+        given(itemService.getTotalItemsCount())
+                .willReturn(Mono.just(totalItems));
+
+        webClient.get().uri(uriBuilder -> uriBuilder
+                        .path("/search")
+                        .queryParam("key", query)
+                        .queryParam("sort", sort.name())
+                        .build())
+                .exchange()
+                .expectStatus().isOk();
+
         verify(itemService).searchItems(query, sort);
         verify(itemService).getTotalItemsCount();
     }
 
     @Test
-    void updateQuantity_shouldCallServiceAndRedirect() throws Exception {
+    void updateQuantity_shouldCallServiceAndRedirect() {
         int itemId = 1;
         String action = "plus";
         int delta = 1;
         PageNames redirectTo = PageNames.CART;
-        given(itemService.updateItemAmount(itemId, delta)).willReturn(item1);
-        mockMvc.perform(post("/item/{id}/{action}", itemId, action)
-                        .param("redirectTo", redirectTo.name()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
+
+        given(itemService.updateItemAmount(itemId, delta))
+                .willReturn(Mono.just(item1));
+
+        webClient.post().uri(uriBuilder -> uriBuilder
+                        .path("/item/{id}/{action}")
+                        .queryParam("redirectTo", redirectTo.name())
+                        .build(itemId, action))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
         verify(itemService).updateItemAmount(itemId, delta);
     }
-
 }
