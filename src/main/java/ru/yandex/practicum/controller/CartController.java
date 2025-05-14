@@ -32,21 +32,25 @@ public class CartController {
                         exchange.getAttributes().put("errorMessage", "Товар отсутствует на складе");
                         return Mono.empty();
                     }
-                    return cartService.addItemToCart(id, amount > 0 ? amount : 1)
-                            .doOnSuccess(cartItem -> 
-                                exchange.getAttributes().put("successMessage", "Товар добавлен в корзину!"))
-                            .onErrorResume(IllegalStateException.class, e -> {
-                                exchange.getAttributes().put("errorMessage", e.getMessage());
-                                return Mono.empty();
-                            })
-                            .onErrorResume(e -> {
-                                exchange.getAttributes().put("errorMessage", "Не удалось добавить товар: " +
-                                        e.getMessage());
-                                return Mono.empty();
-                            });
+                    return addItemToCart(id, amount, exchange);
                 })
                 .thenReturn(REDIRECT_MAIN)
                 .defaultIfEmpty(REDIRECT_MAIN);
+    }
+
+    private Mono<?> addItemToCart(Integer id, int amount, ServerWebExchange exchange) {
+        return cartService.addItemToCart(id, amount > 0 ? amount : 1)
+                .doOnSuccess(cartItem ->
+                        exchange.getAttributes().put("successMessage", "Товар добавлен в корзину!"))
+                .onErrorResume(IllegalStateException.class, e -> {
+                    exchange.getAttributes().put("errorMessage", e.getMessage());
+                    return Mono.empty();
+                })
+                .onErrorResume(e -> {
+                    exchange.getAttributes().put("errorMessage", "Не удалось добавить товар: " +
+                            e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     @GetMapping("/items")

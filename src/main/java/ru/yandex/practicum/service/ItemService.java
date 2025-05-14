@@ -41,25 +41,24 @@ public class ItemService {
     }
 
     public Mono<Item> createItem(Item item) {
-        if (item.getImageFile() != null) {
-            return item.getImageFile().content()
-                    .reduce(new byte[0], (prev, buffer) -> {
-                        byte[] bytes = new byte[buffer.readableByteCount()];
-                        buffer.read(bytes);
-                        return bytes;
-                    })
-                    .flatMap(bytes -> {
-                        var image = new ru.yandex.practicum.model.Image();
-                        image.setImageBytes(bytes);
-                        return imageRepo.save(image);
-                    })
-                    .flatMap(savedImage -> {
-                        item.setImageId(savedImage.getId());
-                        return itemRepo.save(item);
-                    });
-        } else {
+        if (item.getImageFile() == null) {
             return itemRepo.save(item);
         }
+        return item.getImageFile().content()
+                .reduce(new byte[0], (prev, buffer) -> {
+                    byte[] bytes = new byte[buffer.readableByteCount()];
+                    buffer.read(bytes);
+                    return bytes;
+                })
+                .flatMap(bytes -> {
+                    var image = new ru.yandex.practicum.model.Image();
+                    image.setImageBytes(bytes);
+                    return imageRepo.save(image);
+                })
+                .flatMap(savedImage -> {
+                    item.setImageId(savedImage.getId());
+                    return itemRepo.save(item);
+                });
     }
 
     public Mono<Item> updateItemAmount(int id, int delta) {
