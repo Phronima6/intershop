@@ -1,28 +1,35 @@
 package ru.yandex.practicum.model;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
-@Table(name = "order_items")
+@Table("order_items")
 public class OrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     int id;
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "order_id")
-    Order order;
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "item_id")
-    Item item;
-    @Column(name = "item_amount")
+    
+    @Column("order_id")
+    Integer orderId;
+    
+    @Column("item_id")
+    Integer itemId;
+    
+    @Column("item_amount")
     int itemAmount;
-
+    
+    @Transient
+    Order order;
+    
+    @Transient
+    Item item;
 }

@@ -1,31 +1,32 @@
 package ru.yandex.practicum.model;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import ru.yandex.practicum.util.Formatter;
 import java.util.List;
 
 @Data
-@Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
-@Table(name = "orders")
+@Table("orders")
 public class Order {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     int id;
-    @OneToMany
-    @JoinColumn(name = "order_id")
-    List<OrderItem> orderItems;
-    @Column(name = "total_sum")
+    
+    @Column("total_sum")
     double totalSum;
+    
+    @Transient
+    List<OrderItem> orderItems;
 
     public String getTotalSumFormatted() {
         return Formatter.DECIMAL_FORMAT.format(totalSum);
     }
-
 }

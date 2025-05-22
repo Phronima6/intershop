@@ -59,19 +59,19 @@
 </a>
 <br>
 <h2 th:text="${'Заказ № '+ order.getId()}"></h2>
-<table th:each="orderItem : ${order.getOrderItems()}" style="width:70%;margin-left:auto;margin-right:auto;">
+<table th:each="orderItem : ${order.getOrderItems()}" th:if="${orderItem.getItem() != null}" style="width:70%;margin-left:auto;margin-right:auto;">
     <tr>
-        <a th:href="${'/items/'+orderItem.getItemDto().getId()}">
-            <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItemDto().id})}" width="300" height="300">
+        <a th:href="${'/items/'+orderItem.getItem().id}">
+            <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItem().id})}" width="300" height="300">
         </a>
     </tr>
     <br>
     <tr width="100">
-        <p th:text="'Название: ' + ${orderItem.getItemDto().getName()}"></p>
+        <p th:text="'Название: ' + ${orderItem.getItem().name}"></p>
     </tr>
     <br>
     <tr width="100">
-        <p th:text="'Описание: ' + ${orderItem.getItemDto().getDescription()}"></p>
+        <p th:text="'Описание: ' + ${orderItem.getItem().description}"></p>
     </tr>
     <br>
     <tr width="100">
@@ -79,11 +79,13 @@
     </tr>
     <br>
     <tr width="100">
-        <p th:text="'Цена: ' + ${orderItem.getItemDto().getPriceFormatted()}+' ₽/ед.'"></p>
+        <p th:text="'Цена: ' + ${#numbers.formatDecimal(orderItem.getItem().price, 1, 'COMMA', 2, 'POINT')} +' ₽/ед.'">
+        </p>
     </tr>
     <br>
     <tr>
-        <p th:text="'Сумма: ' + ${orderItem.getItemDto().getPrice() * orderItem.getItemAmount()} + ' ₽'"></p>
+        <p th:text="'Сумма: ' + ${#numbers.formatDecimal(orderItem.getItem().price * orderItem.itemAmount, 1, 'COMMA',
+        2, 'POINT')} + ' ₽'"></p>
     </tr>
 </table>
 <b th:text="'Итоговая сумма заказа: ' + ${order.getTotalSumFormatted()}+' ₽'"></b>

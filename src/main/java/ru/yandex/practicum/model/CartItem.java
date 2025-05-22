@@ -1,14 +1,16 @@
 package ru.yandex.practicum.model;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
-@Table(name = "cart_items")
+@Table("cart_items")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,12 +18,14 @@ import lombok.experimental.FieldDefaults;
 public class CartItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "item_id", nullable = false)
-    Item item;
-    @Column(nullable = false)
+    
+    @Column("item_id")
+    Integer itemId;
+    
+    @Column("quantity")
     Integer quantity = 1;
-
+    
+    @Transient
+    Item item;
 }

@@ -4,13 +4,14 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import ru.yandex.practicum.model.Order;
+import org.springframework.web.reactive.result.view.Rendering;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+import ru.yandex.practicum.service.CartService;
 import ru.yandex.practicum.service.OrderService;
-import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -18,31 +19,41 @@ import java.util.List;
 public class OrderController {
 
     OrderService orderService;
+    CartService cartService;
 
     @PostMapping("/create-order")
-    public String createOrder(final Model model) {
-        final Order order = orderService.createOrder();
-        if (order == null) {
-            return "redirect:/main/items";
-        }
-        model.addAttribute("order", order);
-        return "order";
+    public Mono<Rendering> createOrder(ServerWebExchange exchange) {
+        return orderService.createOrder()
+                .map(order -> Rendering.view("order")
+                        .modelAttribute("order", order)
+                        .build())
+                .onErrorResume(e -> {
+                    exchange.getAttributes().put("errorMessage", "Не удалось создать заказ: " + e.getMessage());
+                    return Mono.just(Rendering.redirectTo("/cart/items").build());
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    exchange.getAttributes().put("errorMessage", "Корзина пуста или все товары отсутствуют на складе");
+                    return Mono.just(Rendering.redirectTo("/cart/items").build());
+                }));
     }
 
     @GetMapping("/orders")
-    public String getOrders(final Model model) {
-        final List<Order> orders = orderService.getOrders();
-        final String sumOfAllOrdersFormatted = orderService.getOrdersTotalSumFormatted();
-        model.addAttribute("sumOfAllOrdersFormatted", sumOfAllOrdersFormatted);
-        model.addAttribute("orders", orders);
-        return "orders";
+    public Mono<Rendering> getOrders() {
+        return orderService.getOrders()
+                .collectList()
+                .zipWith(orderService.getOrdersTotalSumFormatted())
+                .map(tuple -> Rendering.view("orders")
+                        .modelAttribute("orders", tuple.getT1())
+                        .modelAttribute("sumOfAllOrdersFormatted", tuple.getT2())
+                        .build());
     }
 
     @GetMapping("/orders/{id}")
-    public String getOrder(final Model model, @PathVariable final Integer id) {
-        final Order order = orderService.getOrder(id);
-        model.addAttribute("order", order);
-        return "order";
+    public Mono<Rendering> getOrder(@PathVariable final Integer id) {
+        return orderService.getOrder(id)
+                .map(order -> Rendering.view("order")
+                        .modelAttribute("order", order)
+                        .build())
+                .switchIfEmpty(Mono.just(Rendering.redirectTo("/orders").build()));
     }
-
 }

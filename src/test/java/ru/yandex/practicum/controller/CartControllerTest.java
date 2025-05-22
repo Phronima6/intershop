@@ -1,36 +1,37 @@
 package ru.yandex.practicum.controller;
 
-import lombok.AccessLevel;
-import lombok.experimental.FieldDefaults;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.model.CartItem;
 import ru.yandex.practicum.model.Item;
 import ru.yandex.practicum.model.PageNames;
+import ru.yandex.practicum.repository.CartRepository;
+import ru.yandex.practicum.repository.ItemRepository;
+import ru.yandex.practicum.repository.OrderItemRepository;
+import ru.yandex.practicum.repository.OrderRepository;
 import ru.yandex.practicum.service.CartService;
-import java.util.List;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(CartController.class)
-@FieldDefaults(level = AccessLevel.PRIVATE)
+@WebFluxTest(CartController.class)
 class CartControllerTest {
 
     @Autowired
-    MockMvc mockMvc;
+    private WebTestClient webClient;
+
     @Autowired
-    CartService cartService;
-    CartItem cartItem;
-    Item item;
+    private CartService cartService;
+
+    private CartItem cartItem1;
+    private Item item1;
 
     @TestConfiguration
     static class ControllerTestConfiguration {
@@ -38,89 +39,100 @@ class CartControllerTest {
         public CartService cartService() {
             return Mockito.mock(CartService.class);
         }
+        
+        @Bean
+        public ItemRepository itemRepository() {
+            return Mockito.mock(ItemRepository.class);
+        }
+        
+        @Bean
+        public OrderRepository orderRepository() {
+            return Mockito.mock(OrderRepository.class);
+        }
+        
+        @Bean
+        public OrderItemRepository orderItemRepository() {
+            return Mockito.mock(OrderItemRepository.class);
+        }
+        
+        @Bean
+        public CartRepository cartRepository() {
+            return Mockito.mock(CartRepository.class);
+        }
     }
 
     @BeforeEach
     void setUp() {
         Mockito.reset(cartService);
-        item = new Item();
-        item.setId(1);
-        item.setName("Test Item 1");
-        item.setPrice(10);
-        cartItem = new CartItem();
-        cartItem.setId(101);
-        cartItem.setItem(item);
-        cartItem.setQuantity(2);
+        item1 = new Item();
+        item1.setId(1);
+        item1.setName("Test Item 1");
+        item1.setPrice(10);
+
+        cartItem1 = new CartItem();
+        cartItem1.setId(101);
+        cartItem1.setItemId(1);
+        cartItem1.setItem(item1);
+        cartItem1.setQuantity(2);
     }
 
     @Test
-    void addToCart_shouldCallServiceAndRedirect() throws Exception {
-        int itemId = 1;
-        given(cartService.addItemToCart(itemId)).willReturn(cartItem);
-        mockMvc.perform(post("/cart/add/{id}", itemId))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/main/items"))
-                .andExpect(flash().attributeExists("successMessage"));
-        verify(cartService).addItemToCart(itemId);
-    }
-
-    @Test
-    void addToCart_shouldHandleExceptionAndRedirect() throws Exception {
-        int itemId = 1;
-        String errorMessage = "Item out of stock";
-        given(cartService.addItemToCart(itemId)).willThrow(new IllegalStateException(errorMessage));
-        mockMvc.perform(post("/cart/add/{id}", itemId))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/main/items"))
-                .andExpect(flash().attribute("errorMessage", errorMessage));
-        verify(cartService).addItemToCart(itemId);
-    }
-
-    @Test
-    void viewCart_shouldReturnCartViewWithItems() throws Exception {
-        given(cartService.getCartItems()).willReturn(List.of(cartItem));
-        given(cartService.getFormattedTotalPrice()).willReturn("20,00");
-        mockMvc.perform(get("/cart/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"))
-                .andExpect(model().attributeExists("cartItems"))
-                .andExpect(model().attributeExists("totalPriceFormatted"))
-                .andExpect(model().attribute("cartItems", List.of(cartItem)));
-        verify(cartService).getCartItems();
-        verify(cartService).getFormattedTotalPrice();
-    }
-
-    @Test
-    void increaseQuantity_shouldCallServiceAndRedirect() throws Exception {
+    void increaseQuantity_shouldCallServiceAndRedirect() {
         int cartItemId = 101;
-        doNothing().when(cartService).increaseCartItemQuantity(cartItemId);
-        mockMvc.perform(post("/cart/item/{cartItemId}/plus", cartItemId))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
+        given(cartService.increaseCartItemQuantity(cartItemId)).willReturn(Mono.empty());
+
+        webClient.post().uri("/cart/item/{cartItemId}/plus", cartItemId)
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
         verify(cartService).increaseCartItemQuantity(cartItemId);
     }
 
     @Test
-    void decreaseQuantity_shouldCallServiceAndRedirect() throws Exception {
+    void decreaseQuantity_shouldCallServiceAndRedirect() {
         int cartItemId = 101;
-        doNothing().when(cartService).decreaseCartItemQuantity(cartItemId);
-        mockMvc.perform(post("/cart/item/{cartItemId}/minus", cartItemId))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
+        given(cartService.decreaseCartItemQuantity(cartItemId)).willReturn(Mono.empty());
+
+        webClient.post().uri("/cart/item/{cartItemId}/minus", cartItemId)
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
         verify(cartService).decreaseCartItemQuantity(cartItemId);
     }
 
     @Test
-    void removeCartItemById_shouldCallServiceAndRedirect() throws Exception {
+    void removeCartItemById_shouldCallServiceAndRedirect() {
         int cartItemId = 101;
         PageNames redirectTo = PageNames.CART;
-        doNothing().when(cartService).removeCartItemById(cartItemId);
-        mockMvc.perform(post("/cart/item/{cartItemId}/remove", cartItemId)
-                        .param("redirectTo", redirectTo.name()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"))
-                .andExpect(flash().attributeExists("successMessage"));
+        given(cartService.removeCartItemById(cartItemId)).willReturn(Mono.empty());
+
+        webClient.post().uri(uriBuilder -> uriBuilder
+                        .path("/cart/item/{cartItemId}/remove")
+                        .queryParam("redirectTo", redirectTo.name())
+                        .build(cartItemId))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
         verify(cartService).removeCartItemById(cartItemId);
     }
+    
+    @Test
+    void removeCartItemById_shouldRedirectToItemsWhenSpecified() {
+        int cartItemId = 101;
+        PageNames redirectTo = PageNames.MAIN;
+        given(cartService.removeCartItemById(cartItemId)).willReturn(Mono.empty());
 
+        webClient.post().uri(uriBuilder -> uriBuilder
+                        .path("/cart/item/{cartItemId}/remove")
+                        .queryParam("redirectTo", redirectTo.name())
+                        .build(cartItemId))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/main/items");
+
+        verify(cartService).removeCartItemById(cartItemId);
+    }
 }

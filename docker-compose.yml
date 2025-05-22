@@ -10,10 +10,9 @@ services:
         condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/intershop
-      - SPRING_DATASOURCE_USERNAME=s
-      - SPRING_DATASOURCE_PASSWORD=sa
+      - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/intershop
+      - SPRING_R2DBC_USERNAME=s
+      - SPRING_R2DBC_PASSWORD=sa
     restart: on-failure
 
   db:

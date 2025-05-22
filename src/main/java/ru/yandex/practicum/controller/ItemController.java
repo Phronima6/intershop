@@ -5,17 +5,16 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.model.PageNames;
 import ru.yandex.practicum.model.SortingCategory;
 import ru.yandex.practicum.model.Item;
 import ru.yandex.practicum.model.Pages;
 import ru.yandex.practicum.service.ItemService;
-import java.io.IOException;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
+import org.springframework.web.server.ServerWebExchange;
 
 @Controller
 @RequestMapping
@@ -27,66 +26,88 @@ public class ItemController {
     ItemService itemService;
 
     @GetMapping({"/", "/main/items"})
-    public String listItems(
-            Model model,
+    public Mono<Rendering> listItems(
             @RequestParam(name = "itemsOnPage", defaultValue = "${items.default.per.page:10}") int itemsOnPage,
             @RequestParam(name = "pageNumber", defaultValue = "1") int pageNumber) {
-        model.addAttribute("items", itemService.getPaginatedItems(itemsOnPage, pageNumber));
-        model.addAttribute("pages", buildPagination(itemsOnPage));
-        return "main";
+        
+        return itemService.getPaginatedItems(itemsOnPage, pageNumber)
+                .collectList()
+                .zipWith(buildPagination(itemsOnPage))
+                .map(tuple -> {
+                    return Rendering.view("main")
+                            .modelAttribute("items", tuple.getT1())
+                            .modelAttribute("pages", tuple.getT2())
+                            .build();
+                });
     }
 
     @GetMapping("/items/{id}")
-    public String getItem(@PathVariable int id, Model model) {
-        Item item = itemService.getItemById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Item not found"));
-        model.addAttribute("itemDto", item);
-        return "item";
+    public Mono<Rendering> getItem(@PathVariable int id) {
+        return itemService.getItemById(id)
+                .map(item -> Rendering.view("item")
+                        .modelAttribute("itemDto", item)
+                        .build())
+                .switchIfEmpty(Mono.error(new RuntimeException("Item not found")));
     }
 
     @GetMapping("/search")
-    public String searchItems(
-            Model model,
+    public Mono<Rendering> searchItems(
             @RequestParam(name = "key", required = false, defaultValue = "") String query,
             @RequestParam(defaultValue = "NO") SortingCategory sort) {
-        model.addAttribute("items", itemService.searchItems(query, sort));
-        model.addAttribute("pages", buildPagination(SEARCH_ITEMS_ON_PAGE));
-        return "main";
+        
+        return itemService.searchItems(query, sort)
+                .collectList()
+                .zipWith(buildPagination(SEARCH_ITEMS_ON_PAGE))
+                .map(tuple -> {
+                    return Rendering.view("main")
+                            .modelAttribute("items", tuple.getT1())
+                            .modelAttribute("pages", tuple.getT2())
+                            .build();
+                });
     }
 
     @PostMapping("/item")
-    public String createItem(@Valid Item item, BindingResult result) throws IOException {
+    public Mono<String> createItem(@Valid Item item, BindingResult result) {
         if (result.hasErrors()) {
-            return "items/new";
+            return Mono.just("items/new");
         }
-        itemService.createItem(item);
-        return "redirect:/main/items";
+        
+        return itemService.createItem(item)
+                .thenReturn("redirect:/main/items");
     }
 
     @PostMapping("/item/{id}/{action}")
-    public String updateQuantity(
+    public Mono<String> updateQuantity(
             @PathVariable int id,
             @PathVariable String action,
-            @RequestParam PageNames redirectTo) {
+            @RequestParam PageNames redirectTo,
+            ServerWebExchange exchange) {
+        
         int delta = "plus".equals(action) ? 1 : -1;
-        itemService.updateItemAmount(id, delta);
-        return switch (redirectTo) {
-            case MAIN -> "redirect:/main/items";
-            case ITEM -> "redirect:/items/" + id;
-            case CART -> "redirect:/cart/items";
-        };
+        return itemService.updateItemAmount(id, delta)
+                .thenReturn(switch (redirectTo) {
+                    case MAIN -> "redirect:/main/items";
+                    case ITEM -> "redirect:/items/" + id;
+                    case CART -> "redirect:/cart/items";
+                })
+                .onErrorResume(IllegalStateException.class, e -> {
+                    exchange.getAttributes().put("errorMessage", e.getMessage());
+                    return Mono.just(switch (redirectTo) {
+                        case MAIN -> "redirect:/main/items";
+                        case ITEM -> "redirect:/items/" + id;
+                        case CART -> "redirect:/cart/items";
+                    });
+                });
     }
 
-    private Pages buildPagination(int itemsOnPage) {
-        return Pages.builder()
-                .itemsOnPage(itemsOnPage)
-                .numberOfPages(calculatePages(itemsOnPage))
-                .build();
+    private Mono<Pages> buildPagination(int itemsOnPage) {
+        return itemService.getTotalItemsCount()
+                .map(total -> {
+                    int numberOfPages = (int) Math.ceil((double) total / itemsOnPage);
+                    return Pages.builder()
+                            .itemsOnPage(itemsOnPage)
+                            .numberOfPages(numberOfPages)
+                            .build();
+                });
     }
-
-    private int calculatePages(int itemsOnPage) {
-        long total = itemService.getTotalItemsCount();
-        return (int) Math.ceil((double) total / itemsOnPage);
-    }
-
 }

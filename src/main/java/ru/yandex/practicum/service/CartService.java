@@ -1,17 +1,15 @@
 package ru.yandex.practicum.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.model.Item;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import ru.yandex.practicum.repository.CartRepository;
 import ru.yandex.practicum.repository.ItemRepository;
 import ru.yandex.practicum.model.CartItem;
 import ru.yandex.practicum.util.Formatter;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,72 +19,87 @@ public class CartService {
     CartRepository cartRepository;
     ItemRepository itemRepository;
 
-    @Transactional
-    public CartItem addItemToCart(int itemId) {
-        Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new EntityNotFoundException("Товар не найден."));
-        if (item.getAmount() <= 0) {
-            throw new IllegalStateException("Товар отсутствует.");
-        }
-        return cartRepository.findByItemId(itemId)
-                .stream()
-                .findFirst()
-                .map(cartItem -> {
-                    cartItem.setQuantity(cartItem.getQuantity() + 1);
-                    return cartRepository.save(cartItem);
-                })
-                .orElseGet(() -> {
-                    CartItem newCartItem = new CartItem();
-                    newCartItem.setItem(item);
-                    return cartRepository.save(newCartItem);
+    public Mono<CartItem> addItemToCart(int itemId, int amount) {
+        return itemRepository.findById(itemId)
+                .switchIfEmpty(Mono.error(new RuntimeException("Item not found")))
+                .flatMap(item -> {
+                    if (item.getAmount() <= 0) {
+                        return Mono.error(new IllegalStateException("Item out of stock"));
+                    }
+                    
+                    return cartRepository.findByItemId(itemId)
+                            .take(1)
+                            .singleOrEmpty()
+                            .flatMap(cartItem -> {
+                                cartItem.setQuantity(cartItem.getQuantity() + amount);
+                                return cartRepository.save(cartItem);
+                            })
+                            .switchIfEmpty(
+                                Mono.defer(() -> {
+                                    CartItem newCartItem = new CartItem();
+                                    newCartItem.setItemId(item.getId());
+                                    newCartItem.setQuantity(amount);
+                                    return cartRepository.save(newCartItem);
+                                })
+                            );
                 });
     }
 
-    @Transactional
-    public void increaseCartItemQuantity(int cartItemId) {
-        CartItem cartItem = cartRepository.findById(cartItemId)
-                .orElseThrow(() -> new EntityNotFoundException("CartItem не найден с id: " + cartItemId));
-
-        cartItem.setQuantity(cartItem.getQuantity() + 1);
-        cartRepository.save(cartItem);
+    public Mono<CartItem> addItemToCart(int itemId) {
+        return addItemToCart(itemId, 1);
     }
 
-    @Transactional
-    public void decreaseCartItemQuantity(int cartItemId) {
-        CartItem cartItem = cartRepository.findById(cartItemId)
-                .orElseThrow(() -> new EntityNotFoundException("CartItem не найден с id: " + cartItemId));
-
-        if (cartItem.getQuantity() > 1) {
-            cartItem.setQuantity(cartItem.getQuantity() - 1);
-            cartRepository.save(cartItem);
-        } else {
-            cartRepository.delete(cartItem);
-        }
+    public Mono<Void> increaseCartItemQuantity(int cartItemId) {
+        return cartRepository.findById(cartItemId)
+                .switchIfEmpty(Mono.error(new RuntimeException("CartItem not found with id: " + cartItemId)))
+                .flatMap(cartItem -> {
+                    cartItem.setQuantity(cartItem.getQuantity() + 1);
+                    return cartRepository.save(cartItem);
+                })
+                .then();
     }
 
-    @Transactional
-    public void removeCartItemById(int cartItemId) {
-        if (!cartRepository.existsById(cartItemId)) {
-            return;
-        }
-        cartRepository.deleteById(cartItemId);
+    public Mono<Void> decreaseCartItemQuantity(int cartItemId) {
+        return cartRepository.findById(cartItemId)
+                .switchIfEmpty(Mono.error(new RuntimeException("CartItem not found with id: " + cartItemId)))
+                .flatMap(cartItem -> {
+                    if (cartItem.getQuantity() > 1) {
+                        cartItem.setQuantity(cartItem.getQuantity() - 1);
+                        return cartRepository.save(cartItem);
+                    } else {
+                        return cartRepository.delete(cartItem).then(Mono.empty());
+                    }
+                })
+                .then();
     }
 
-    @Transactional(readOnly = true)
-    public List<CartItem> getCartItems() {
-        return cartRepository.findAll();
+    public Mono<Void> removeCartItemById(int cartItemId) {
+        return cartRepository.existsById(cartItemId)
+                .flatMap(exists -> exists ? 
+                        cartRepository.deleteById(cartItemId) : 
+                        Mono.empty())
+                .then();
     }
 
-    @Transactional(readOnly = true)
-    public double getTotalPrice() {
+    public Flux<CartItem> getCartItems() {
         return cartRepository.findAll()
-                .stream()
-                .mapToDouble(cartItem -> cartItem.getItem().getPrice() * cartItem.getQuantity())
-                .sum();
+                .flatMap(cartItem -> 
+                    itemRepository.findById(cartItem.getItemId())
+                            .map(item -> {
+                                cartItem.setItem(item);
+                                return cartItem;
+                            })
+                );
     }
 
-    public String getFormattedTotalPrice() {
-        return Formatter.DECIMAL_FORMAT.format(getTotalPrice());
+    public Mono<Double> getTotalPrice() {
+        return getCartItems()
+                .map(cartItem -> cartItem.getItem().getPrice() * cartItem.getQuantity())
+                .reduce(0.0, Double::sum);
     }
 
+    public Mono<String> getFormattedTotalPrice() {
+        return getTotalPrice()
+                .map(Formatter.DECIMAL_FORMAT::format);
+    }
 }
