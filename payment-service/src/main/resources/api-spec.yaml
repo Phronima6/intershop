@@ -1,0 +1,32 @@
+openapi: 3.0.3
+info:
+  title: Сервис совершения платежей
+  version: 1.1.0
+paths:
+  /payments/do-payment:
+    post:
+      summary: Списать платеж с баланса
+      operationId: doPayment
+      parameters:
+        - name: payment
+          in: query
+          description: Сумма заказа для списания с баланса
+          required: true
+          schema:
+            type: number
+            format: double
+      responses:
+        '200':
+          description: OK
+  /payments/balance:
+    get:
+      summary: Получить баланс
+      operationId: getBalance
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: number
+                format: double

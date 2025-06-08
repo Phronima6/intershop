@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Заказ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 20%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: right;
+        }
+        .form-container {
+            margin-bottom: 40px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="text"], input[type="number"], input[type="checkbox"] {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        select {
+            margin-bottom: 20px;
+        }
+        button {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .btn-add {
+            margin-bottom: 20px;
+        }
+        p {
+            display: inline;
+        }
+        .submitbutton{
+            display:block;
+        }
+        .order-status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .paid {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .unpaid {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .payment-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .payment-button:hover {
+            background-color: #45a049;
+        }
+        .balance-info {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<a href="/orders" style="float:right;">
+    <b>Заказы</b>
+</a>
+<br/>
+<a href="/main/items" style="float:right;">
+    <b>На главную</b>
+</a>
+<br>
+<h2 th:text="${'Заказ № '+ order.getId()}"></h2>
+
+<div th:class="${order.isPaid() ? 'order-status paid' : 'order-status unpaid'}">
+    <span th:text="${'Статус: ' + order.getStatusText()}"></span>
+</div>
+
+<table th:each="orderItem : ${order.getOrderItems()}" th:if="${orderItem.getItem() != null}" style="width:70%;margin-left:auto;margin-right:auto;">
+    <tr>
+        <a th:href="${'/items/'+orderItem.getItem().id}">
+            <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItem().id})}" width="300" height="300">
+        </a>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Название: ' + ${orderItem.getItem().name}"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Описание: ' + ${orderItem.getItem().description}"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Количество: ' + ${orderItem.getItemAmount()} + ' ед.'"></p>
+    </tr>
+    <br>
+    <tr width="100">
+        <p th:text="'Цена: ' + ${#numbers.formatDecimal(orderItem.getItem().price, 1, 'COMMA', 2, 'POINT')} +' ₽/ед.'">
+        </p>
+    </tr>
+    <br>
+    <tr>
+        <p th:text="'Сумма: ' + ${#numbers.formatDecimal(orderItem.getItem().price * orderItem.itemAmount, 1, 'COMMA',
+        2, 'POINT')} + ' ₽'"></p>
+    </tr>
+</table>
+<b th:text="'Итоговая сумма заказа: ' + ${order.getTotalSumFormatted()}+' ₽'"></b>
+
+<!-- Отображение информации о балансе если она доступна -->
+<div class="balance-info" th:if="${userBalance != null}">
+    <p th:text="'Ваш баланс: ' + ${userBalance} + ' ₽'"></p>
+</div>
+
+<!-- Кнопка оплаты отображается только если заказ еще не оплачен -->
+<div th:if="${!order.isPaid()}">
+    <a th:href="@{'/orders/' + ${order.getId()} + '/payment'}" class="payment-button">Оплатить заказ</a>
+</div>
+</body>
+</html>

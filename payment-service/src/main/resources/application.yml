@@ -1,0 +1,35 @@
+server:
+  port:   8081
+
+spring:
+  application:
+    name: payment-service
+  main:
+    banner-mode: off
+
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui-custom.html
+    tryItOutEnabled: true
+    persistAuthorization: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  logging:
+    level:
+      org.springframework.web: DEBUG
