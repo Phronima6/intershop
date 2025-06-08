@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Оплата заказа</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .payment-form {
+            width: 50%;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .payment-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .payment-details {
+            margin-bottom: 20px;
+        }
+        .payment-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        .payment-button:hover {
+            background-color: #45a049;
+        }
+        .error-message {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .payment-info {
+            margin-bottom: 15px;
+        }
+        .navbar {
+            margin-bottom: 30px;
+        }
+        .balance {
+            text-align: right;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/orders" style="float:right; margin-left: 10px;">
+            <b>Заказы</b>
+        </a>
+        <a href="/cart/items" style="float:right; margin-left: 10px;">
+            <b>Корзина</b>
+        </a>
+        <a href="/main/items" style="float:right;">
+            <b>На главную</b>
+        </a>
+    </div>
+
+    <div class="balance" th:if="${userBalance != null}">
+        <p>Ваш баланс: <span th:text="${userBalance}"></span> ₽</p>
+    </div>
+
+    <div class="payment-form">
+        <div class="payment-header">
+            <h2>Оплата заказа №<span th:text="${order.getId()}"></span></h2>
+        </div>
+
+        <div class="error-message" th:if="${errorMessage != null}">
+            <p th:text="${errorMessage}"></p>
+        </div>
+
+        <div class="payment-details">
+            <div class="payment-info">
+                <h3>Информация о заказе</h3>
+                <p>Сумма заказа: <span th:text="${order.getTotalSumFormatted()}"></span> ₽</p>
+            </div>
+
+            <form th:action="@{/process-payment}" method="post">
+                <input type="hidden" name="orderId" th:value="${order.getId()}" />
+                <input type="hidden" name="totalSum" th:value="${order.getTotalSum()}" />
+                
+                <button type="submit" class="payment-button">Оплатить заказ</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

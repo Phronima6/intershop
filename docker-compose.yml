@@ -1,22 +1,60 @@
 version: '3.8'
 
 services:
-  server:
-    build: .
+  main-app:
+    build:
+      context: .
+      target: main-app
+    container_name: intershop-main-app
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_PROFILES_ACTIVE=prod
       - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/intershop
       - SPRING_R2DBC_USERNAME=s
       - SPRING_R2DBC_PASSWORD=sa
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - CACHE_ENABLED=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: on-failure
+
+  payment-service:
+    build:
+      context: .
+      target: payment-service
+    container_name: intershop-payment-service  
+    ports:
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/intershop
+      - SPRING_R2DBC_USERNAME=s
+      - SPRING_R2DBC_PASSWORD=sa
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     restart: on-failure
 
   db:
     image: postgres:13.7-alpine
+    container_name: intershop-postgres
     ports:
       - "6541:5432"
     environment:
@@ -32,5 +70,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7.0-alpine
+    container_name: intershop-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
 volumes:
   postgres_data:
+    name: intershop-postgres-data
+  redis_data:
+    name: intershop-redis-data
