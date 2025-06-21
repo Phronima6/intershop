@@ -1,14 +1,27 @@
-FROM maven:3.9.6 AS BUILD
+FROM maven:3.9.6 AS build
 WORKDIR /usr/app/
 COPY pom.xml .
-COPY src ./src
-RUN mvn package
+COPY main-app/pom.xml main-app/
+COPY payment-service/pom.xml payment-service/
 
-# Package stage
-FROM amazoncorretto:21
-ENV JAR_NAME=intershop.jar
+RUN mvn dependency:go-offline -B
+
+COPY main-app/src/ main-app/src/
+COPY payment-service/src/ payment-service/src/
+RUN mvn clean package -DskipTests
+
+FROM amazoncorretto:21 AS main-app
 ENV APP_HOME=/usr/app
 WORKDIR $APP_HOME
-COPY --from=BUILD $APP_HOME/target/$JAR_NAME $APP_HOME/
+RUN yum install -y curl
+COPY --from=build /usr/app/main-app/target/intershop.jar $APP_HOME/app.jar
 EXPOSE 8080
-ENTRYPOINT exec java -jar $APP_HOME/$JAR_NAME
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+FROM amazoncorretto:21 AS payment-service
+ENV APP_HOME=/usr/app
+WORKDIR $APP_HOME
+RUN yum install -y curl
+COPY --from=build /usr/app/payment-service/target/payment-service-1.0-SNAPSHOT.jar $APP_HOME/app.jar
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"] 
