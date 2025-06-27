@@ -24,7 +24,6 @@ public class ItemService {
 
     public Flux<Item> getPaginatedItems(int perPage, int page) {
         String cacheKey = "page_" + page + "_size_" + perPage;
-        
         return itemCacheService.getOrCacheItemList(cacheKey, 
                 itemRepo.findAll(Sort.by("id"))
                         .skip((long) (page - 1) * perPage)
@@ -39,7 +38,6 @@ public class ItemService {
 
     public Flux<Item> searchItems(String query, SortingCategory sort) {
         String cacheKey = "search_" + query + "_sort_" + sort.name();
-        
         return itemCacheService.getOrCacheItemList(cacheKey, 
                 itemRepo.findBySearchQuery(query)
                         .sort((i1, i2) -> {
@@ -99,7 +97,6 @@ public class ItemService {
     
     private void invalidateItemCache(Integer itemId) {
         if (itemId == null) return;
-        
         itemCacheService.invalidateItemCache(itemId)
                 .subscribe(
                         null,
@@ -115,7 +112,6 @@ public class ItemService {
         item.setDescription(cachedItem.getDescription());
         item.setPrice((int) Math.round(cachedItem.getPrice()));
         item.setImageId(cachedItem.getImageId());
-        
         return Mono.just(item);
     }
 
@@ -125,7 +121,7 @@ public class ItemService {
         item.setName(cachedItem.getName());
         item.setDescription(cachedItem.getDescription());
         item.setPrice((int) Math.round(cachedItem.getPrice()));
-        
         return Mono.just(item);
     }
+
 }

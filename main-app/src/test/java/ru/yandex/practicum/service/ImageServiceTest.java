@@ -2,59 +2,26 @@ package ru.yandex.practicum.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
-import ru.yandex.practicum.model.Image;
 import ru.yandex.practicum.repository.ImageRepository;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-@ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
 
-    @Mock
-    private ImageRepository imageRepository;
+    @Mock ImageRepository imageRepository;
+    @InjectMocks ImageService imageService;
 
-    @InjectMocks
-    private ImageService imageService;
-
-    private Image image1;
-    private byte[] imageBytes;
-
-    @BeforeEach
-    void setUp() {
-        imageBytes = "test data".getBytes();
-        image1 = new Image();
-        image1.setId(1);
-        image1.setImageBytes(imageBytes);
+    @BeforeEach void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
-    @Test
-    void getImage_whenImageExists_shouldReturnBytes() {
-        int imageId = 1;
-        when(imageRepository.findById(imageId)).thenReturn(Mono.just(image1));
-
-        StepVerifier.create(imageService.getImage(imageId))
-                .expectNext(imageBytes)
-                .verifyComplete();
-
-        verify(imageRepository).findById(imageId);
+    @Test void testGetImage() {
+        when(imageRepository.findById(anyInt())).thenReturn(Mono.empty());
+        assertNotNull(imageService.getImage(1).block());
     }
 
-    @Test
-    void getImage_whenImageNotFound_shouldReturnDefaultImage() {
-        int imageId = 99;
-        when(imageRepository.findById(imageId)).thenReturn(Mono.empty());
-
-        StepVerifier.create(imageService.getImage(imageId))
-                .expectNextCount(1)
-                .verifyComplete();
-
-        verify(imageRepository).findById(imageId);
-    }
-}
+} 

@@ -43,8 +43,31 @@
         .payment-info {
             margin-bottom: 15px;
         }
+        /* Добавляем стили для навигационной панели */
         .navbar {
-            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar a {
+            text-decoration: none;
+            color: #333;
+            margin-left: 15px;
+            font-weight: bold;
+        }
+        .navbar a:hover {
+            color: #007bff;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+        }
+        .nav-user {
+            margin-right: 15px;
         }
         .balance {
             text-align: right;
@@ -54,16 +77,20 @@
     </style>
 </head>
 <body>
+    <!-- Добавляем навигационную панель -->
     <div class="navbar">
-        <a href="/orders" style="float:right; margin-left: 10px;">
-            <b>Заказы</b>
-        </a>
-        <a href="/cart/items" style="float:right; margin-left: 10px;">
-            <b>Корзина</b>
-        </a>
-        <a href="/main/items" style="float:right;">
-            <b>На главную</b>
-        </a>
+        <div class="nav-left">
+            <a href="/main/items">Главная</a>
+        </div>
+        <div class="nav-right">
+            <div th:if="${isAuthenticated}" class="nav-user">
+                <span th:if="${currentUser != null}" th:text="${currentUser.name}">Пользователь</span>
+            </div>
+            <a th:if="${!isAuthenticated}" href="/login">Войти</a>
+            <a th:if="${isAuthenticated}" href="/logout">Выйти</a>
+            <a href="/cart/items">Корзина</a>
+            <a href="/orders">Заказы</a>
+        </div>
     </div>
 
     <div class="balance" th:if="${userBalance != null}">
@@ -72,26 +99,26 @@
 
     <div class="payment-form">
         <div class="payment-header">
-            <h2>Оплата заказа №<span th:text="${order.getId()}"></span></h2>
+            <h2>Оплата заказа</h2>
         </div>
-
-        <div class="error-message" th:if="${errorMessage != null}">
-            <p th:text="${errorMessage}"></p>
+        
+        <div th:if="${error}" class="error-message">
+            <p th:text="${error}"></p>
         </div>
-
+        
         <div class="payment-details">
             <div class="payment-info">
-                <h3>Информация о заказе</h3>
-                <p>Сумма заказа: <span th:text="${order.getTotalSumFormatted()}"></span> ₽</p>
+                <strong>Номер заказа:</strong> <span th:text="${orderId}"></span>
             </div>
-
-            <form th:action="@{/process-payment}" method="post">
-                <input type="hidden" name="orderId" th:value="${order.getId()}" />
-                <input type="hidden" name="totalSum" th:value="${order.getTotalSum()}" />
-                
-                <button type="submit" class="payment-button">Оплатить заказ</button>
-            </form>
+            <div class="payment-info">
+                <strong>Сумма к оплате:</strong> <span th:text="${amount}"></span> ₽
+            </div>
         </div>
+        
+        <form th:action="@{/process-payment}" method="POST">
+            <input type="hidden" name="orderId" th:value="${order.id}" />
+            <button type="submit" class="payment-button">Оплатить</button>
+        </form>
     </div>
 </body>
 </html>

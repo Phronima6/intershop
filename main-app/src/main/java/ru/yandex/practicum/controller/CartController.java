@@ -28,9 +28,7 @@ public class CartController {
             @PathVariable final Integer id,
             @RequestParam(required = false, defaultValue = "1") Integer amount,
             ServerWebExchange exchange) {
-        
         System.out.println("Received amount parameter: " + amount);
-            
         return itemRepository.findById(id)
                 .flatMap(item -> {
                     int availableAmount = item.getAmount();
@@ -38,9 +36,7 @@ public class CartController {
                         exchange.getAttributes().put("errorMessage", "Товар отсутствует на складе");
                         return Mono.just(REDIRECT_MAIN);
                     }
-                    
                     final int finalAmount = amount > availableAmount ? availableAmount : amount;
-                    
                     return cartService.addItemToCart(id, finalAmount)
                             .thenReturn(REDIRECT_MAIN)
                             .onErrorResume(e -> {
@@ -98,7 +94,6 @@ public class CartController {
             @RequestParam PageNames redirectTo,
             @RequestParam(required = false) Integer itemId,
             ServerWebExchange exchange) {
-        
         return cartService.removeCartItemById(cartItemId)
                 .doOnSuccess(v -> exchange.getAttributes().put("successMessage", "Товар удален из корзины."))
                 .onErrorResume(e -> {
@@ -112,4 +107,5 @@ public class CartController {
                 })
                 .defaultIfEmpty(REDIRECT_CART);
     }
+
 }

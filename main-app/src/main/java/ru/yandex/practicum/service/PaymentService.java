@@ -18,12 +18,10 @@ public class PaymentService {
 
     PaymentClientService paymentClientService;
     OrderRepository orderRepository;
-    private static final String DEFAULT_USERNAME = "user";
-    
 
     @Transactional
-    public Mono<Boolean> processPaymentForOrder(Integer orderId) {
-        log.info("Начинаем обработку платежа для заказа ID: {}", orderId);
+    public Mono<Boolean> processPaymentForOrder(Integer orderId, String username) {
+        log.info("Начинаем обработку платежа для заказа ID: {} пользователем {}", orderId, username);
         return orderRepository.findById(orderId)
             .doOnNext(order -> log.info("Заказ {} найден, сумма: {}, статус оплаты: {}", 
                     orderId, order.getTotalSum(), order.isPaid()))
@@ -32,14 +30,14 @@ public class PaymentService {
                     log.info("Заказ {} уже оплачен", orderId);
                     return Mono.just(true);
                 }
-                return paymentClientService.getUserBalance(DEFAULT_USERNAME)
-                    .doOnNext(balance -> log.info("Текущий баланс пользователя {}: {}", DEFAULT_USERNAME, balance))
+                return paymentClientService.getUserBalance(username)
+                    .doOnNext(balance -> log.info("Текущий баланс пользователя {}: {}", username, balance))
                     .flatMap(balance -> {
                         double orderAmount = order.getTotalSum();
                         if (balance >= orderAmount) {
                             log.info("Достаточно средств для оплаты: баланс {}, сумма заказа {}", 
                                     balance, orderAmount);
-                            return processPayment(order, orderAmount);
+                            return processPayment(order, orderAmount, username);
                         } else {
                             log.warn("Недостаточно средств для оплаты заказа {}: баланс {}, требуется {}", 
                                 orderId, balance, orderAmount);
@@ -58,9 +56,9 @@ public class PaymentService {
             }));
     }
 
-    private Mono<Boolean> processPayment(Order order, double amount) {
-        log.info("Вызов платежного сервиса для заказа {}, сумма {}", order.getId(), amount);
-        return paymentClientService.processPayment(amount, DEFAULT_USERNAME)
+    private Mono<Boolean> processPayment(Order order, double amount, String username) {
+        log.info("Вызов платежного сервиса для заказа {}, сумма {}, пользователь {}", order.getId(), amount, username);
+        return paymentClientService.processPayment(amount, username)
             .doOnNext(success -> {
                 if (success) {
                     log.info("Платежный сервис вернул успешный результат для заказа {}", order.getId());

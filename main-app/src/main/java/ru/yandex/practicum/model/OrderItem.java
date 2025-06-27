@@ -17,19 +17,15 @@ public class OrderItem {
 
     @Id
     int id;
-    
     @Column("order_id")
     Integer orderId;
-    
     @Column("item_id")
     Integer itemId;
-    
     @Column("item_amount")
     int itemAmount;
-    
     @Transient
     Order order;
-    
     @Transient
     Item item;
+
 }

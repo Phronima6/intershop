@@ -25,4 +25,9 @@ public class PaymentController {
         return paymentService.doPayment(payment, username);
     }
 
+    @PostMapping("/init-balance")
+    public Mono<Void> initBalance(@RequestParam String username) {
+        return paymentService.initBalance(username);
+    }
+
 }

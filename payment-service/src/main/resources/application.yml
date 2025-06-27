@@ -6,6 +6,12 @@ spring:
     name: payment-service
   main:
     banner-mode: off
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
 
 springdoc:
   swagger-ui:
@@ -33,3 +39,21 @@ spring:
   logging:
     level:
       org.springframework.web: DEBUG
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081
+          jwk-set-uri: http://localhost:8081/oauth2/jwks
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://payment-service:8081}
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://payment-service:8081/oauth2/jwks}

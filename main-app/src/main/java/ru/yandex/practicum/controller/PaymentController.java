@@ -30,6 +30,8 @@ public class PaymentController {
                     orderService.getUserBalanceFormatted()
                         .map(balance -> Rendering.view("payment")
                             .modelAttribute("order", order)
+                            .modelAttribute("orderId", order.getId())
+                            .modelAttribute("amount", order.getTotalSumFormatted())
                             .modelAttribute("userBalance", balance)
                             .modelAttribute("errorMessage", 
                                 exchange.getAttributeOrDefault("errorMessage", null))
@@ -50,24 +52,25 @@ public class PaymentController {
                         }
                         Integer orderId = Integer.valueOf(orderIdStr);
                         log.info("Получен запрос на оплату заказа ID: {}", orderId);
-                        return paymentService.processPaymentForOrder(orderId)
-                                .flatMap(success -> {
-                                    if (success) {
-                                        log.info("Заказ {} успешно оплачен", orderId);
-                                        return Mono.just(Rendering.redirectTo("/orders/" + orderId)
-                                                .build());
-                                    } else {
-                                        log.warn("Ошибка при оплате заказа {}", orderId);
-                                        exchange.getAttributes().put("errorMessage", 
-                                                "Не удалось выполнить оплату. Недостаточно средств или ошибка платежного сервиса.");
-                                        return Mono.just(Rendering.redirectTo("/orders/" + orderId + "/payment")
-                                                .build());
-                                    }
-                                });
+                        return exchange.getPrincipal()
+                            .map(principal -> principal.getName())
+                            .flatMap(username -> paymentService.processPaymentForOrder(orderId, username))
+                            .flatMap(success -> {
+                                if (success) {
+                                    log.info("Заказ {} успешно оплачен", orderId);
+                                    return Mono.just(Rendering.redirectTo("/orders/" + orderId)
+                                            .build());
+                                } else {
+                                    log.warn("Ошибка при оплате заказа {}", orderId);
+                                    exchange.getAttributes().put("errorMessage", 
+                                            "Не удалось выполнить оплату. Недостаточно средств или ошибка платежного сервиса.");
+                                    return Mono.just(Rendering.redirectTo("/orders/" + orderId + "/payment")
+                                            .build());
+                                }
+                            });
                     } catch (Exception e) {
                         log.error("Ошибка при обработке формы оплаты: {}", e.getMessage());
-                        return Mono.just(Rendering.redirectTo("/orders")
-                                .build());
+                        return Mono.just(Rendering.redirectTo("/orders").build());
                     }
                 });
     }

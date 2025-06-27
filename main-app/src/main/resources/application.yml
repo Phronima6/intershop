@@ -60,6 +60,19 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 15s
 
+  security:
+    oauth2:
+      client:
+        registration:
+          payment-client:
+            client-id: intershop-client
+            client-secret: secret
+            authorization-grant-type: client_credentials
+            scope: payment_api
+        provider:
+          payment-provider:
+            token-uri: http://localhost:8081/oauth2/token
+
 payment:
   service:
     url: http://localhost:8081
@@ -126,6 +139,16 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+  security:
+    oauth2:
+      client:
+        registration:
+          payment-client:
+            client-id: ${OAUTH2_CLIENT_ID:intershop-client}
+            client-secret: ${OAUTH2_CLIENT_SECRET:secret}
+        provider:
+          payment-provider:
+            token-uri: ${OAUTH2_TOKEN_URI:http://payment-service:8081/oauth2/token}
 
 payment:
   service:

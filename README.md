@@ -46,4 +46,4 @@ http://localhost:8080/main/items
 - Заказы: http://localhost:8080/orders
 - API платежного сервиса: http://localhost:8081/swagger-ui-custom.html
 
-Студент Шестаков А.В., 2-ая когорта, курс "Мидл Java-разработчик".
+Студент Шестаков А.В., 4-ая когорта, курс "Мидл Java-разработчик".

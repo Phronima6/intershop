@@ -1,7 +1,6 @@
 package ru.yandex.practicum.util;
 
 import lombok.NoArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;

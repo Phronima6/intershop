@@ -4,10 +4,101 @@
     <meta charset="UTF-8"/>
     <title>Корзина товаров</title>
     <style>
-        /* Стили остаются */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .cart-empty {
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .cart-table th, .cart-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+        }
+        .cart-table th {
+            background-color: #f2f2f2;
+        }
+        .cart-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .cart-total {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .delete-button {
+            background-color: #f44336;
+        }
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+        /* Добавляем стили для навигационной панели */
+        .navbar {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar a {
+            text-decoration: none;
+            color: #333;
+            margin-left: 15px;
+            font-weight: bold;
+        }
+        .navbar a:hover {
+            color: #007bff;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+        }
+        .nav-user {
+            margin-right: 15px;
+        }
     </style>
 </head>
 <body>
+<!-- Добавляем навигационную панель -->
+<div class="navbar">
+    <div class="nav-left">
+        <a href="/main/items">Главная</a>
+    </div>
+    <div class="nav-right">
+        <div th:if="${isAuthenticated}" class="nav-user">
+            <span th:if="${currentUser != null}" th:text="${currentUser.name}">Пользователь</span>
+        </div>
+        <a th:if="${!isAuthenticated}" href="/login">Войти</a>
+        <a th:if="${isAuthenticated}" href="/logout">Выйти</a>
+        <a href="/cart/items">Корзина</a>
+        <a href="/orders">Заказы</a>
+    </div>
+</div>
+
 <div th:if="${successMessage}" style="color: green; border: 1px solid green; padding: 10px; margin-bottom: 10px;">
     <p th:text="${successMessage}"></p>
 </div>
@@ -15,14 +106,6 @@
     <p th:text="${errorMessage}"></p>
 </div>
 
-<a href="/orders" style="float:right;">
-    <b>Заказы</b>
-</a>
-<br/>
-<a href="/main/items" style="float:right;">
-    <b>На главную</b>
-</a>
-<br>
 <table th:each="cartItem : ${cartItems}">
     <table>
         <tr>
