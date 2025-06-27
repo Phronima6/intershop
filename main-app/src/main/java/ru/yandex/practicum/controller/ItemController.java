@@ -29,7 +29,6 @@ public class ItemController {
     public Mono<Rendering> listItems(
             @RequestParam(name = "itemsOnPage", defaultValue = "${items.default.per.page:10}") int itemsOnPage,
             @RequestParam(name = "pageNumber", defaultValue = "1") int pageNumber) {
-        
         return itemService.getPaginatedItems(itemsOnPage, pageNumber)
                 .collectList()
                 .zipWith(buildPagination(itemsOnPage))
@@ -54,7 +53,6 @@ public class ItemController {
     public Mono<Rendering> searchItems(
             @RequestParam(name = "key", required = false, defaultValue = "") String query,
             @RequestParam(defaultValue = "NO") SortingCategory sort) {
-        
         return itemService.searchItems(query, sort)
                 .collectList()
                 .zipWith(buildPagination(SEARCH_ITEMS_ON_PAGE))
@@ -71,7 +69,6 @@ public class ItemController {
         if (result.hasErrors()) {
             return Mono.just("items/new");
         }
-        
         return itemService.createItem(item)
                 .thenReturn("redirect:/main/items");
     }
@@ -82,7 +79,6 @@ public class ItemController {
             @PathVariable String action,
             @RequestParam PageNames redirectTo,
             ServerWebExchange exchange) {
-        
         int delta = "plus".equals(action) ? 1 : -1;
         return itemService.updateItemAmount(id, delta)
                 .thenReturn(switch (redirectTo) {
@@ -110,4 +106,5 @@ public class ItemController {
                             .build();
                 });
     }
+
 }

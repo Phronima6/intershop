@@ -9,117 +9,164 @@
             margin: 20px;
         }
         table {
-            width: 60%;
+            width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
-            border-style: hidden;
+            margin-top: 20px;
         }
-        td {
-            border: 1px solid #ccc;
-            padding: 10px;
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
             text-align: left;
-            vertical-align: top;
         }
-        button {
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .order-header {
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .order-total {
+            font-weight: bold;
+            text-align: right;
             margin-top: 10px;
-            cursor: pointer;
-        }
-        p {
-            display: inline;
-        }
-        h4 {
-            margin-bottom: 2px;
-        }
-        .order-status {
-            padding: 5px 10px;
-            border-radius: 3px;
-            display: inline-block;
-            margin-left: 10px;
-            font-size: 0.8em;
-        }
-        .paid {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .unpaid {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
         }
         .payment-button {
             background-color: #4CAF50;
             color: white;
-            padding: 5px 10px;
+            padding: 10px 15px;
             border: none;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
-            margin-left: 10px;
-            text-decoration: none;
-            font-size: 0.8em;
+            margin-top: 10px;
         }
         .payment-button:hover {
             background-color: #45a049;
         }
-        .balance-info {
-            text-align: right;
+        .no-orders {
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        /* Добавляем стили для навигационной панели */
+        .navbar {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
             margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar a {
+            text-decoration: none;
+            color: #333;
+            margin-left: 15px;
             font-weight: bold;
+        }
+        .navbar a:hover {
+            color: #007bff;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+        }
+        .nav-user {
+            margin-right: 15px;
+        }
+        .balance {
+            text-align: right;
+            font-weight: bold;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-<a href="/cart/items" style="float:right;">
-    <b>Корзина</b>
-</a>
-<br/>
-<a href="/main/items" style="float:right;">
-    <b>На главную</b>
-</a>
+<!-- Добавляем навигационную панель -->
+<div class="navbar">
+    <div class="nav-left">
+        <a href="/main/items">Главная</a>
+    </div>
+    <div class="nav-right">
+        <div th:if="${isAuthenticated}" class="nav-user">
+            <span th:if="${currentUser != null}" th:text="${currentUser.name}">Пользователь</span>
+        </div>
+        <a th:if="${!isAuthenticated}" href="/login">Войти</a>
+        <a th:if="${isAuthenticated}" href="/logout">Выйти</a>
+        <a href="/cart/items">Корзина</a>
+        <a href="/orders">Заказы</a>
+    </div>
+</div>
 
-<div class="balance-info" th:if="${userBalance != null}">
+<div class="balance" th:if="${userBalance != null}">
     <p>Ваш баланс: <span th:text="${userBalance}"></span> ₽</p>
 </div>
 
-<table th:each="order : ${orders}">
-    <br/>
-    <h4>
-        <a th:text="${'Заказ № ' + order.getId()}" th:href="${'/orders/' + order.getId()}"></a>
-        <span th:class="${order.isPaid() ? 'order-status paid' : 'order-status unpaid'}" 
-              th:text="${order.getStatusText()}"></span>
-        <a th:if="${!order.isPaid()}" th:href="@{'/orders/' + ${order.getId()} + '/payment'}" 
-           class="payment-button">Оплатить</a>
-    </h4>
-    <table th:each="orderItem : ${order.getOrderItems()}" th:if="${orderItem.getItem() != null}">
-        <td>
-            <a th:href="${'/items/' + orderItem.getItem().id}">
-                <img th:src="@{/{itemDtoId}/image(itemDtoId=${orderItem.getItem().id})}" width="300" height="300">
+<div th:if="${successMessage}" style="color: green; border: 1px solid green; padding: 10px; margin-bottom: 10px;">
+    <p th:text="${successMessage}"></p>
+</div>
+
+<div th:if="${errorMessage}" style="color: red; border: 1px solid red; padding: 10px; margin-bottom: 10px;">
+    <p th:text="${errorMessage}"></p>
+</div>
+
+<a href="/cart/items">Вернуться в корзину</a>
+
+<h2>Ваши заказы</h2>
+
+<div th:if="${#lists.isEmpty(orders)}" class="no-orders">
+    <p>У вас пока нет заказов.</p>
+    <a href="/main/items">Перейти к каталогу товаров</a>
+</div>
+
+<div th:if="${!#lists.isEmpty(orders)}">
+    <div th:each="order : ${orders}" class="order-container">
+        <div class="order-header">
+            <span th:text="'Заказ #' + ${order.id} + ' от ' + ${order.createdAt}"></span>
+            <span th:if="${order.status != null}" th:text="', Статус: ' + ${order.status}"></span>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Товар</th>
+                    <th>Количество</th>
+                    <th>Цена за единицу</th>
+                    <th>Стоимость</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="orderItem : ${order.orderItems}">
+                    <td th:text="${orderItem.item != null ? orderItem.item.name : 'Товар удалён'}"></td>
+                    <td th:text="${orderItem.itemAmount}"></td>
+                    <td th:text="${orderItem.item != null ? #numbers.formatDecimal(orderItem.item.price, 1, 'COMMA', 2, 'POINT') + ' ₽' : '-'}"></td>
+                    <td th:text="${orderItem.item != null ? #numbers.formatDecimal(orderItem.item.price * orderItem.itemAmount, 1, 'COMMA', 2, 'POINT') + ' ₽' : '-'}"></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="order-total">
+            <p>Итого: <span th:text="${order.totalPriceFormatted} + ' ₽'"></span></p>
+        </div>
+        
+        <div th:if="${order.status == 'NEW'}">
+            <a th:href="@{/orders/{orderId}/payment(orderId=${order.id})}">
+                <button class="payment-button">Оплатить</button>
             </a>
-        </td>
-        <td>
-            <p th:text="'Название: ' + ${orderItem.getItem().name}"></p>
-            <br/>
-            <p th:text="'Описание: ' + ${orderItem.getItem().description}"></p>
-            <br/>
-            <p th:text="'Цена: ' + ${#numbers.formatDecimal(orderItem.getItem().price, 1, 'COMMA', 2, 'POINT')}+
-            ' ₽/ед.'"></p>
-            <br/>
-            <p th:text="'Количество: ' + ${orderItem.getItemAmount()} + ' ед.'"></p>
-            <br/>
-            <p th:text="'Сумма: ' + ${#numbers.formatDecimal(orderItem.getItem().price * orderItem.itemAmount, 1,
-            'COMMA', 2, 'POINT')}+' ₽'"></p>
-        </td>
-    </table>
-    <p>
-        <b th:text="${'Сумма заказа № ' + order.getId() + ': ' + order.getTotalSumFormatted()} + ' ₽'"></b>
-    </p>
-    <hr/>
-    <br/>
-</table>
-<br/>
-<br/>
-<p>
-    <b th:text="'Общая сумма всех сделанных заказов: ' + ${sumOfAllOrdersFormatted} + ' ₽'"></b>
-</p>
+        </div>
+    </div>
+    
+    <div class="order-total" th:if="${sumOfAllOrdersFormatted != null}">
+        <p>Общая сумма всех заказов: <span th:text="${sumOfAllOrdersFormatted} + ' ₽'"></span></p>
+    </div>
+</div>
+
 </body>
 </html>

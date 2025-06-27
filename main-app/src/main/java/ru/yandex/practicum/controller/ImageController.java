@@ -21,4 +21,5 @@ public class ImageController {
     public Mono<byte[]> getImage(@PathVariable(name = "imageId") final int imageId) {
         return imageService.getImage(imageId);
     }
+
 }

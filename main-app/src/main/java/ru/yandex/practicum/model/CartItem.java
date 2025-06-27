@@ -26,6 +26,10 @@ public class CartItem {
     @Column("quantity")
     Integer quantity = 1;
     
+    @Column("user_id")
+    Integer userId;
+    
     @Transient
     Item item;
+
 }
