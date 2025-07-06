@@ -11,4 +11,5 @@ public interface ItemRepository extends R2dbcRepository<Item, Integer> {
     @Query("SELECT * FROM items WHERE LOWER(name) LIKE LOWER(CONCAT('%',:query,'%')) " +
            "OR LOWER(description) LIKE LOWER(CONCAT('%',:query,'%'))")
     Flux<Item> findBySearchQuery(@Param("query") String query);
+
 }

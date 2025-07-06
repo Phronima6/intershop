@@ -22,16 +22,12 @@ public class ItemCacheService {
 
     final ReactiveRedisTemplate<String, ItemDetailCache> itemDetailRedisTemplate;
     final ReactiveRedisTemplate<String, ItemListCache> itemListRedisTemplate;
-    
     @Value("${cache.item.ttl:3600}")
     long itemCacheTtlSeconds;
-    
     @Value("${cache.item.detail-prefix:item:detail:}")
     String detailPrefix;
-    
     @Value("${cache.item.list-prefix:item:list:}")
     String listPrefix;
-    
     @Value("${cache.item.search-prefix:item:search:}")
     String searchPrefix;
 

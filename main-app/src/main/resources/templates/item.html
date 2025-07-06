@@ -86,20 +86,51 @@
         p {
             display: inline;
         }
+        /* Добавляем стили для навигационной панели */
+        .navbar {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar a {
+            text-decoration: none;
+            color: #333;
+            margin-left: 15px;
+            font-weight: bold;
+        }
+        .navbar a:hover {
+            color: #007bff;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+        }
+        .nav-user {
+            margin-right: 15px;
+        }
     </style>
 </head>
 <body>
-<a href="/orders" style="float:right;">
-    <b>Заказы</b>
-</a>
-<br/>
-<a href="/cart/items" style="float:right;">
-    <b>Корзина</b>
-</a>
-<br/>
-<a href="/main/items" style="float:right;">
-    <b>На главную</b>
-</a>
+<!-- Добавляем навигационную панель -->
+<div class="navbar">
+    <div class="nav-left">
+        <a href="/main/items">Главная</a>
+    </div>
+    <div class="nav-right">
+        <div th:if="${isAuthenticated}" class="nav-user">
+            <span th:if="${currentUser != null}" th:text="${currentUser.name}">Пользователь</span>
+        </div>
+        <a th:if="${!isAuthenticated}" href="/login">Войти</a>
+        <a th:if="${isAuthenticated}" href="/logout">Выйти</a>
+        <a href="/cart/items">Корзина</a>
+        <a href="/orders">Заказы</a>
+    </div>
+</div>
+
 <img th:src="@{/{itemDtoId}/image(itemDtoId=${itemDto.id})}" width="300" height="300"/>
 <br/>
 <p th:text="'Название: ' + ${itemDto.getName()}"></p>

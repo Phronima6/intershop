@@ -42,4 +42,13 @@ public class PaymentService {
         return Mono.empty();
     }
 
+    public Mono<Void> initBalance(String username) {
+        if (!usersBalances.containsKey(username)) {
+            double balance = 1000.0;
+            usersBalances.put(username, balance);
+            log.info("Инициализирован баланс для пользователя {}: {}", username, balance);
+        }
+        return Mono.empty();
+    }
+
 }
